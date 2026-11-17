@@ -1,5 +1,7 @@
 # team-matic
 
+by [ARG·IO.](https://argio.ai)
+
 Automate your own Microsoft Teams chats from scripts and AI agents. No Azure app, no Graph API,
 no admin consent, no bot registration: team-matic drives the Teams desktop client you are already
 signed in to, on your own Windows computer.
@@ -300,3 +302,5 @@ All tests are offline: temporary databases and a fake page, no Teams and no netw
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+by [ARG·IO.](https://argio.ai)
