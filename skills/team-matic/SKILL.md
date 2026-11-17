@@ -17,8 +17,8 @@ python $tm doctor
 ```
 
 `doctor` returns pass/fail checks, each with a fix. Run it first and whenever a command fails.
-Top-level `ok: true` means reading works. A failed `debug_port` or `composer` check does not clear it,
-because only `sync` and sending need those; read their `fix` before syncing or sending.
+Top-level `ok: true` means the setup is sound. A failed `debug_port`, `composer` or `account` check does not
+clear it, because those depend on the port being open; read their `fix` before reading live or sending.
 Output is JSON on stdout. Errors are `{"ok": false, "error": ...}` on stderr with a nonzero exit code.
 Report an error as an error.
 
@@ -37,29 +37,25 @@ Report an error as an error.
 ## Read
 
 ```powershell
-python $tm list                         # cached chats with chat_id
+python $tm list                         # chats with chat_id
 python $tm incoming --limit 30          # newest incoming messages
 python $tm incoming --chat <chat_id>
 python $tm read --chat <chat_id> --limit 50   # one conversation, both directions
-python $tm stats                        # size and age of the cache
+python $tm stats                        # counts and source
 python $tm whoami                       # author id of the signed-in account (own_creator for the policy)
 ```
 
-These read the local cache and need no debug port. Results carry `synced_at_utc` and `cache_age_seconds`:
-state the age when it matters. The cache holds what the Teams client has loaded, not the full history.
+These read live from the Teams client, so they need the debug port (`cdp status`). Nothing from the
+messages is written to disk. They see what the Teams client has loaded, not the full history.
 
-Refresh the cache (needs the debug port):
-
-```powershell
-python $tm cdp status
-python $tm sync
-```
+Reading with the port closed: run `python $tm sync` once while it is open (saves an offline copy), then add
+`--offline` to `list`, `incoming`, `read` or `stats`. Offline results carry `synced_at_utc` and
+`cache_age_seconds`: state the age when it matters.
 
 Process new messages exactly once per consumer:
 
 ```powershell
-python $tm incoming --cursor my-agent --commit   # first call creates the cursor at the current sync
-python $tm sync
+python $tm incoming --cursor my-agent --commit   # first call creates the cursor; the backlog is skipped
 python $tm incoming --cursor my-agent            # what arrived since the last commit
 python $tm incoming --cursor my-agent --commit   # after handling them
 ```
@@ -77,7 +73,7 @@ python $tm incoming --cursor my-agent --commit   # after handling them
 
 By default only the chat already selected in Teams is written to. Other chats need `--allow-navigation`.
 Safer alternative: `run ... --draft-only` composes the next message in Teams and stops, so the user reads it
-and presses Send. Record it afterwards with `sync` and `reconcile --job <id> --message-id <id>`.
+and presses Send. Record it afterwards with `reconcile --job <id> --message-id <id>` (port open).
 
 ### Message file
 
@@ -119,7 +115,7 @@ The same content is never sent twice to one chat. For an intended repeat (a week
 
 - `pending` with an `error`: the tool stopped before clicking Send; nothing was delivered. Fix the cause
   (for example an existing draft in that chat) and call `run` again.
-- `uncertain` or `attempting`: stop. `python $tm sync`, read the chat, then either
+- `uncertain` or `attempting`: stop. Read the chat (port open), then either
   `reconcile --job <id> --message-id <id>` when the message is there, or tell the user. Only the user decides
   `abandon --job <id>` after checking Teams by hand.
 - `python $tm cancel --batch <SHA256>` cancels jobs that were not sent.

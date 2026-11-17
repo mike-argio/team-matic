@@ -131,11 +131,9 @@ class OutboxTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         root = Path(self.tmp.name)
-        cache = root / "cache.sqlite3"
-        with contextlib.closing(sqlite3.connect(cache)) as db, db:
-            db.execute("CREATE TABLE chats(chat_id TEXT PRIMARY KEY,title TEXT)")
-            db.executemany("INSERT INTO chats VALUES(?,?)", [("chat-a", "Same name"), ("chat-b", "Same name")])
-        self.box = Outbox(root / "outbox.sqlite3", cache)
+        self.stored = {}
+        self.box = Outbox(root / "outbox.sqlite3", chats=lambda: {"chat-a": "Same name", "chat-b": "Same name"},
+                          lookup=lambda chat, message: self.stored.get((chat, message)))
         self.policy = dict(enabled=True, allowed_chat_ids=["chat-a", "chat-b"],
                            own_creator="8:owner", min_interval_seconds=30, max_batch_size=5)
 
@@ -292,6 +290,14 @@ class OutboxTests(unittest.TestCase):
             self.box.run(view["batch"], view["confirm"], self.policy, backend)
         self.assertEqual(self.box.show(view["batch"])["jobs"][0]["state"], "uncertain")
 
+    def test_local_echo_id_is_not_proof_of_delivery(self):
+        view = self.plan()
+        echo = Mock(return_value={"ok": True, "message": {
+            "id": "-1", "creator": "8:owner", "html": "<p>Hello 🐾</p>", "deleted": False}})
+        with self.assertRaises(RuntimeError):
+            self.box.run(view["batch"], view["confirm"], self.policy, echo)
+        self.assertEqual(self.box.show(view["batch"])["jobs"][0]["state"], "uncertain")
+
     def test_locks_fail_closed_and_stale_lock_is_replaced(self):
         view = self.plan()
         backend = Mock()
@@ -348,11 +354,8 @@ class OutboxTests(unittest.TestCase):
         view = self.plan()
         with self.assertRaises(TimeoutError):
             self.box.run(view["batch"], view["confirm"], self.policy, Mock(side_effect=TimeoutError()))
-        with contextlib.closing(sqlite3.connect(self.box.cache)) as db, db:
-            db.execute("""CREATE TABLE messages(chat_id TEXT,message_id TEXT,creator TEXT,direction TEXT,
-                deleted INTEGER,time_ms INTEGER,html TEXT)""")
-            db.execute("INSERT INTO messages VALUES(?,?,?,?,?,?,?)",
-                       ("chat-a", "proof", "8:owner", "outgoing", 0, 9999999999999, "<p>Hello 🐾</p>"))
+        self.stored[("chat-a", "proof")] = {"creator": "8:owner", "direction": "outgoing", "deleted": 0,
+                                            "time_ms": 9999999999999, "html": "<p>Hello 🐾</p>"}
         job = view["jobs"][0]["id"]
         with self.assertRaises(ValueError):
             self.box.reconcile(job, "wrong-id")

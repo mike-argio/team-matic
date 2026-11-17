@@ -81,7 +81,6 @@ assert.equal(progress.clicked, false);
 
 // Rich path: composes through paste, verifies text and formats, and stops before Send in draft mode.
 draft = ""; draftHtml = "";
-const anchor = {chat_id: "chat-a", id: "old", html: "<p>old</p>"};
 globalThis.indexedDB = {
   databases: async () => [{name: "x:replychain-manager:y"}],
   open: () => {
@@ -93,7 +92,7 @@ globalThis.indexedDB = {
           const tx = {objectStore: () => ({openCursor: () => {
             const req = {};
             queueMicrotask(() => {
-              req.result = {value: {messageMap: {a: {type: "Message", id: "old", creator: "8:me", content: "<p>old</p>"}}},
+              req.result = {value: {messageMap: {a: {type: "Message", id: "old", creator: "8:me", content: "<p>old</p>", isSentByCurrentUser: true}}},
                 continue() { req.result = null; req.onsuccess(); }};
               req.onsuccess();
             });
@@ -108,7 +107,7 @@ globalThis.indexedDB = {
   },
 };
 globalThis.IDBKeyRange = {bound: () => null};
-const rich = {chat_id: "chat-a", own_creator: "8:me", anchor, allow_navigation: false, draft_only: true,
+const rich = {chat_id: "chat-a", own_creator: "8:me", allow_navigation: false, draft_only: true,
   html: "<p><strong>Hi</strong></p>", plain: "Hi", type_text: "Hi", require: [["bold", "<(strong|b)[\\s>]"]]};
 assert.deepEqual(await deliver(rich, browser, progress), {ok: true, drafted: true});
 assert.equal(pasted.type, "paste");
@@ -119,5 +118,9 @@ draft = ""; draftHtml = "";
 editor.dispatchEvent = event => { draft = event.clipboardData.get("text/plain"); draftHtml = "<p>Hi</p>"; };
 await assert.rejects(deliver({...rich, draft_only: false}, browser, progress), /FORMAT_NOT_APPLIED_LEAVE_FOR_INSPECTION bold/);
 assert.equal(clicks, 1);
+assert.equal(progress.clicked, false);
+// The account must be proven by the client's own flag, never assumed.
+draft = ""; draftHtml = "";
+await assert.rejects(deliver({...rich, own_creator: "8:someone-else"}, browser, progress), /ACCOUNT_NOT_VERIFIED/);
 assert.equal(progress.clicked, false);
 console.log("Adapter guard checks PASS (offline; no UI compatibility claim)");

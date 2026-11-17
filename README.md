@@ -50,30 +50,29 @@ cd team-matic
 
 python teammatic.py doctor         # Check your setup and required software
 python teammatic.py cdp open       # Restart Teams with a temporary local debug port
-python teammatic.py sync           # Cache the chats and messages Teams has loaded
-python teammatic.py list           # See chat IDs
+python teammatic.py list           # See chat IDs, read live from Teams
 python teammatic.py incoming --limit 10
 python teammatic.py cdp close      # Close the port and restart Teams normally
 ```
 
 > [!WARNING]
-> **`cdp open` restarts Teams and exposes a powerful, unauthenticated local debug port.** Other programs running under your Windows account may control the Teams session while it is open. Only open it deliberately, on a trusted computer, and close it afterwards. Your cached read commands work without the port once you have synced.
+> **`cdp open` restarts Teams and exposes a powerful, unauthenticated local debug port.** Other programs running under your Windows account may control the Teams session while it is open. Only open it deliberately, on a trusted computer, and close it afterwards. Reads are live by default, so they need the port; to read with the port closed, save an offline copy with `sync` first and add `--offline`.
 
-A successful `sync` does **not** export your full Teams history. It caches the chats and messages currently loaded by the client. Open or scroll older conversations in Teams, then sync again to collect more of the loaded history.
+Team-matic sees only the chats and messages the client has **loaded**, not your full Teams history. Open or scroll older conversations in Teams to load more.
 
 ## How it works
 
-![Architecture showing scripts and AI agents connecting through team-matic to the signed-in Teams desktop client, with a local SQLite cache](assets/diagram-architecture.svg)
+![Architecture showing scripts and AI agents connecting through team-matic to the signed-in Teams desktop client, with an optional offline copy](assets/diagram-architecture.svg)
 
-**Reading** collects the Teams client's locally loaded message data into SQLite. **Sending** operates the actual Teams message composer through the desktop client's local debug interface, checking the recipient, draft and stored message. Team-matic never calls Microsoft Graph or extracts authentication cookies or tokens.
+**Reading** takes the messages the Teams client has loaded, live, and returns JSON. No message copy is written to disk unless you run `sync`. Only a small `state.json` (your account id, chat names, cursor positions) and the send log stay in `data/`. **Sending** operates the actual Teams message composer through the desktop client's local debug interface, checking the recipient, draft and stored message. Team-matic never calls Microsoft Graph or extracts authentication cookies or tokens.
 
-The local connection only needs to be open for `sync` and `run`. Close it after those operations. The cache and outbox live under git-ignored `data/`.
+The local connection needs to be open for live reads, `sync` and `run`. Close it when you are done. Everything team-matic keeps lives under git-ignored `data/`.
 
 ## Read messages
 
-![Read workflow from loaded Teams chats to local synchronization, SQLite cache and offline commands](assets/diagram-read.svg)
+![Read workflow: open the local port, read live from the Teams client, close the port; optional sync for offline reading](assets/diagram-read.svg)
 
-Read from the cache even when Teams is closed:
+With the port open, every read comes live from the running client:
 
 ```powershell
 python teammatic.py list
@@ -85,14 +84,19 @@ python teammatic.py stats
 Need to process only new messages? Give each script or agent its own **named cursor**:
 
 ```powershell
-python teammatic.py incoming --cursor my-agent --commit  # Initialize at the current sync
-# At a later, explicitly authorized refresh:
-python teammatic.py sync
-python teammatic.py incoming --cursor my-agent           # Read messages since last commit
+python teammatic.py incoming --cursor my-agent --commit  # Create it; the existing backlog is skipped
+python teammatic.py incoming --cursor my-agent           # Later: messages since the last commit
 python teammatic.py incoming --cursor my-agent --commit  # Commit AFTER processing
 ```
 
-The first cursor initialization intentionally skips the existing backlog. Results include cache freshness information (`synced_at_utc` and `cache_age_seconds`), so your agent can tell whether it is looking at recent data.
+Want to read with the port closed, for example from a scheduled job? Save an offline copy once, then add `--offline` to `list`, `read`, `incoming` or `stats`:
+
+```powershell
+python teammatic.py sync                     # Port open: write data/teams_bridge.sqlite3
+python teammatic.py incoming --offline       # Port closed: read that copy
+```
+
+Every result says where it came from (`source`: `live` or `offline`) and, for the offline copy, how old it is.
 
 [Full reading and cursor guide](docs/OPERATING_GUIDE.md#how-cache-and-cursors-work) · [Working example](examples/new_messages.py)
 
@@ -146,7 +150,7 @@ Want to press Send yourself? `--draft-only` composes the message and pauses for 
 Also supported in the documented format: Markdown-style bold, italic, headings, lists, links and tables; per-recipient **mail merge**; an `occurrence` label for intentional repeats. See [formatting](docs/FORMATTING.md) and [the full sending guide](docs/OPERATING_GUIDE.md#sending-from-policy-to-delivery).
 
 > [!NOTE]
-> **Live-verified:** reading/sync and supervised plain-text sending on one Windows 11 personal Teams installation. **Offline-tested but not yet verified live:** formatted sends, draft-only and some recovery paths. Work/school Teams accounts have not been live-tested. See [verification details](docs/VERIFICATION.md). Don't infer live compatibility from passing unit tests.
+> **Live-verified:** live reads, sync, supervised plain-text and formatted sending, and `--draft-only` on one Windows 11 personal Teams installation. **Offline-tested but not yet verified live:** mail merge at scale and some recovery paths. Work/school Teams accounts have not been live-tested. See [verification details](docs/VERIFICATION.md). Don't infer live compatibility from passing unit tests.
 
 ## Built for agents, bounded by humans
 
@@ -210,6 +214,10 @@ node tests/test-send-adapter.mjs
 ```
 
 These are offline tests using temporary data and a fake page. They do not confirm that an updated Teams client still exposes the same interface elements.
+
+## Contributing
+
+Help is welcome, and the most useful kind needs no code: **tell us whether team-matic works with your Teams setup** (version, work or school account, UI language) through a [compatibility report](https://github.com/mike-argio/team-matic/issues/new?template=compatibility_report.yml). Code changes: read [CONTRIBUTING.md](CONTRIBUTING.md). Security issues: [SECURITY.md](SECURITY.md), never a public issue.
 
 MIT licensed. See [LICENSE](LICENSE). Use only with your own account, expected recipients and the applicable Microsoft, organization, privacy and anti-spam rules.
 

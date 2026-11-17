@@ -46,7 +46,7 @@ A single line break inside a paragraph is kept as a line break. An empty line st
 
 | Syntax | Result |
 |---|---|
-| `# Title`, `## Title`, `### Title` | heading, levels 1 to 3 |
+| `# Title`, `## Title`, `### Title` | heading; Teams shows it as a bold subheading |
 | `- item` or `* item` on consecutive lines | bullet list |
 | `1. item` or `1) item` on consecutive lines | numbered list |
 | `> text` on consecutive lines | quote |
@@ -70,6 +70,30 @@ Inline marks work inside headings, list items and quotes.
 ```
 
 A longer one is in [`examples/message.json`](../examples/message.json).
+
+## What it looks like in Teams
+
+Real screenshots from the live check (personal account, November 2026).
+
+<p align="center">
+  <img src="../assets/formatting/formatted-message.png" alt="A formatted team-matic message in Teams: title, bold and italic text, lists, quote, code, link and a table" width="560">
+</p>
+<p align="center">
+  <img src="../assets/formatting/plain-message.png" alt="A plain text message sent by team-matic" width="440">
+</p>
+
+| Format | Appearance in Teams |
+|---|---|
+| Title | bold, same size as the text |
+| Headings | bold line; not enlarged inside a chat bubble |
+| Paragraphs | an empty line becomes a line break, not a large gap |
+| Lists | indented |
+| Quote | light box with a bar on the left |
+| Inline code | dark highlighted monospace |
+| Code block | light box with line numbers |
+| Link | underlined |
+| Table | light cells with dark text, first row bold |
+| Emoji | shown as Teams emoji |
 
 ## What is not supported, and why
 

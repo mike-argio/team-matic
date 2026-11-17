@@ -1,7 +1,10 @@
-"""team-matic reader: local cache of Microsoft Teams chats for agents and scripts.
+"""team-matic reader: Microsoft Teams chats for agents and scripts.
 
-Read only. Uses the local WebView2 IndexedDB through a fixed Node helper.
+Read only. Uses the local WebView2 IndexedDB of the Teams client through a fixed Node helper.
 No Graph, no Azure, no Teams service calls, no tokens.
+
+By default every read goes live to the running Teams client and keeps no copy of messages.
+`sync` stores an explicit offline copy in SQLite; `--offline` reads that copy.
 """
 from __future__ import annotations
 
@@ -10,7 +13,6 @@ import collections
 import contextlib
 import ctypes
 import datetime as dt
-import gzip
 import html
 from html.parser import HTMLParser
 import json
@@ -23,10 +25,12 @@ import sys
 ROOT = Path(__file__).resolve().parent
 DATA = Path(os.environ.get("TEAMMATIC_DATA") or ROOT / "data").resolve()
 DB = DATA / "teams_bridge.sqlite3"
-SNAPSHOT = DATA / "snapshot_latest.json.gz"
+STATE = DATA / "state.json"
 COLLECTOR = ROOT / "scripts" / "collect-cache.mjs"
-SCHEMA = "teammatic-cache-v2"
+SCHEMA = "teammatic-cache-v3"
 BLOCKS = {"br", "p", "li", "div", "td", "th", "tr", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "pre"}
+OFFLINE = False  # Set by the CLI: read the stored copy instead of the live client.
+_view = None
 
 
 def cdp_port() -> int:
@@ -53,7 +57,7 @@ def verify_port_ownership() -> None:
                             capture_output=True, text=True, timeout=20)
     if result.returncode != 0 or "OWNED_BY_TEAMS" not in result.stdout:
         raise RuntimeError(f"Debug port {cdp_port()} is closed or not owned by Teams. "
-                           "Run `python teammatic.py cdp open` first; refusing to connect.")
+                           "Run `python teammatic.py cdp open` first, or add --offline to read a copy saved by `sync`.")
 
 
 class TextRenderer(HTMLParser):
@@ -95,7 +99,7 @@ def strip_html(source):
     try:
         parser.feed(source or "")
         return parser.text()
-    except Exception:  # Malformed third-party HTML must not stop a sync.
+    except Exception:  # Malformed third-party HTML must not stop a read.
         return html.unescape(source or "")[:100000]
 
 
@@ -146,41 +150,42 @@ def exclusive_lock(path):
             path.unlink()
 
 
-def open_db():
+# --- small state file: account id, chat directory, cursors. Never message content. ---
+
+def load_state() -> dict:
+    try:
+        return json.loads(STATE.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {}
+
+
+def save_state(state: dict) -> None:
     DATA.mkdir(parents=True, exist_ok=True)
-    db = sqlite3.connect(DB, timeout=30)
-    db.execute("PRAGMA journal_mode=WAL")
-    db.executescript("""
-    CREATE TABLE IF NOT EXISTS sync_runs(
-      run_id INTEGER PRIMARY KEY AUTOINCREMENT,
-      synced_at_utc TEXT NOT NULL, scope TEXT NOT NULL, chats INTEGER, messages INTEGER);
-    CREATE TABLE IF NOT EXISTS chats(
-      chat_id TEXT PRIMARY KEY,title TEXT NOT NULL,kind TEXT,
-      roster_time TEXT,roster_preview TEXT,
-      cached_replychains INTEGER NOT NULL,last_seen_run INTEGER NOT NULL);
-    CREATE TABLE IF NOT EXISTS messages(
-      chat_id TEXT NOT NULL,message_id TEXT NOT NULL,creator TEXT,
-      direction TEXT NOT NULL,time_ms INTEGER NOT NULL,text TEXT NOT NULL,
-      html TEXT NOT NULL,message_type TEXT,deleted INTEGER NOT NULL,
-      first_seen_run INTEGER NOT NULL,last_seen_run INTEGER NOT NULL,
-      PRIMARY KEY(chat_id,message_id),
-      FOREIGN KEY(chat_id) REFERENCES chats(chat_id));
-    CREATE INDEX IF NOT EXISTS ix_messages_time ON messages(time_ms DESC);
-    CREATE INDEX IF NOT EXISTS ix_messages_incoming ON messages(direction,time_ms DESC);
-    CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY,value TEXT NOT NULL);
-    CREATE TABLE IF NOT EXISTS cursors(name TEXT PRIMARY KEY,run_id INTEGER NOT NULL);
-    """)
-    return db
+    temporary = STATE.with_suffix(".tmp")
+    temporary.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(temporary, STATE)  # Atomic: a crash never leaves half a file.
 
 
-def stored_identity(db) -> str | None:
-    row = db.execute("SELECT value FROM meta WHERE key='own_creator'").fetchone()
-    if row:
-        return row[0] or None  # Empty value: `whoami --reset` asked for fresh detection.
-    # Caches written before the meta table already know the account.
-    known = [r[0] for r in db.execute(
-        "SELECT DISTINCT creator FROM messages WHERE direction='outgoing' AND creator!=''")]
-    return known[0] if len(known) == 1 else None
+def known_chats() -> dict:
+    """chat_id -> title from the last read. Lets `plan` work without the debug port."""
+    return load_state().get("chats", {})
+
+
+def stored_identity() -> str | None:
+    state = load_state()
+    if "own_creator" in state:
+        return state["own_creator"] or None  # Empty: `whoami --reset` asked for fresh detection.
+    if DB.is_file():
+        # Copies written by earlier versions already know the account.
+        with contextlib.closing(sqlite3.connect(DB.as_uri() + "?mode=ro", uri=True)) as db:
+            with contextlib.suppress(sqlite3.Error):
+                row = db.execute("SELECT value FROM meta WHERE key='own_creator'").fetchone()
+                if row:
+                    return row[0] or None
+            known = [r[0] for r in db.execute(
+                "SELECT DISTINCT creator FROM messages WHERE direction='outgoing' AND creator!=''")]
+            return known[0] if len(known) == 1 else None
+    return None
 
 
 def resolve_own_creator(chats, explicit=None):
@@ -209,8 +214,8 @@ def resolve_own_creator(chats, explicit=None):
         by_spread = ranked[0][1]
     if explicit:
         if by_flag and by_flag != explicit:
-            raise RuntimeError("Teams is signed in to a different account than this cache was built for. "
-                               "Use a separate TEAMMATIC_DATA directory or `whoami --reset`.")
+            raise RuntimeError("Teams is signed in to a different account than this data folder was set up for. "
+                               "Use a separate TEAMMATIC_DATA folder or `whoami --reset`.")
         return explicit, "configured"
     if by_flag and by_spread and by_flag != by_spread:
         raise RuntimeError("Account signals disagree; set it explicitly with `whoami --set <creator>`.")
@@ -221,64 +226,118 @@ def resolve_own_creator(chats, explicit=None):
                        f"Pick yours and run `whoami --set <creator>`. Candidates: {candidates}")
 
 
-def sync():
-    with exclusive_lock(DATA / ".sync.lock"):
-        verify_port_ownership()
-        result = subprocess.run(["node", str(COLLECTOR), str(SNAPSHOT)], capture_output=True, text=True,
-                                encoding="utf-8", errors="replace", timeout=180)
-        if result.returncode:
-            raise RuntimeError("Collector failed: " + (result.stderr[-1600:] or result.stdout[-1600:]))
-        with gzip.open(SNAPSHOT, "rt", encoding="utf-8") as f:
-            payload = json.load(f)
-        if payload.get("schema") != SCHEMA:
-            raise RuntimeError("Invalid collector snapshot")
-        chats = payload["chats"]
-        if not chats or len({x["threadId"] for x in chats}) != len(chats):
-            raise RuntimeError("Empty or ambiguous chat identities")
-        now = dt.datetime.now(dt.timezone.utc).isoformat()
-        db = open_db()
-        try:
-            explicit = os.environ.get("TEAMMATIC_OWN_CREATOR") or stored_identity(db)
-            own, method = resolve_own_creator(chats, explicit)
-            with db:
-                db.execute("INSERT OR REPLACE INTO meta VALUES('own_creator',?)", (own,))
-                cur = db.execute("INSERT INTO sync_runs(synced_at_utc,scope,chats,messages) VALUES(?,?,?,?)",
-                                 (now, "loaded-roster-cache", len(chats), sum(len(c["messages"]) for c in chats)))
-                run_id = cur.lastrowid
-                for chat in chats:
-                    cid = chat["threadId"]
-                    db.execute("""INSERT INTO chats(chat_id,title,kind,roster_time,roster_preview,cached_replychains,last_seen_run)
-                      VALUES(?,?,?,?,?,?,?) ON CONFLICT(chat_id) DO UPDATE SET
-                      title=excluded.title,kind=excluded.kind,roster_time=excluded.roster_time,
-                      roster_preview=excluded.roster_preview,cached_replychains=excluded.cached_replychains,
-                      last_seen_run=excluded.last_seen_run""",
-                               (cid, chat["title"], chat["kind"], chat["rosterTime"], chat["rosterPreview"],
-                                chat["replyChains"], run_id))
-                    for m in chat["messages"]:
-                        raw = m.get("html") or ""
-                        creator = m.get("creator") or ""
-                        direction = "unknown" if not creator else "outgoing" if creator == own else "incoming"
-                        db.execute("""INSERT INTO messages(chat_id,message_id,creator,direction,time_ms,text,html,message_type,deleted,first_seen_run,last_seen_run)
-                          VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(chat_id,message_id) DO UPDATE SET
-                          creator=excluded.creator,direction=excluded.direction,time_ms=excluded.time_ms,
-                          text=excluded.text,html=excluded.html,message_type=excluded.message_type,
-                          deleted=excluded.deleted,last_seen_run=excluded.last_seen_run""",
-                                   (cid, str(m["id"]), creator, direction, int(m["timeMs"]), strip_html(raw), raw,
-                                    m.get("messageType"), int(bool(m.get("deleted"))), run_id, run_id))
-            row = db.execute("SELECT COUNT(*),SUM(direction='incoming'),SUM(direction='outgoing') FROM messages").fetchone()
-            return dict(run_id=run_id, visible_chats=len(chats), db_messages=row[0], incoming=row[1] or 0,
-                        outgoing=row[2] or 0, initial_baseline=(run_id == 1), own_creator=own,
-                        own_creator_source=method, db_path=str(DB))
-        finally:
-            db.close()
+# --- reading the live client ---
+
+def collect():
+    """One read of the Teams client. The collector prints JSON; nothing is written to disk."""
+    verify_port_ownership()
+    result = subprocess.run(["node", str(COLLECTOR)], capture_output=True, text=True,
+                            encoding="utf-8", errors="replace", timeout=180)
+    if result.returncode:
+        raise RuntimeError("Collector failed: " + (result.stderr[-1600:] or result.stdout[-1600:]))
+    payload = json.loads(result.stdout)
+    if payload.get("schema") != SCHEMA:
+        raise RuntimeError("Invalid collector output")
+    chats = payload["chats"]
+    if not chats or len({x["threadId"] for x in chats}) != len(chats):
+        raise RuntimeError("Empty or ambiguous chat identities")
+    own, method = resolve_own_creator(chats, os.environ.get("TEAMMATIC_OWN_CREATOR") or stored_identity())
+    state = load_state()
+    state.update(own_creator=own, chats={c["threadId"]: c["title"] for c in chats})
+    save_state(state)
+    return chats, own, method
+
+
+def create_schema(db):
+    db.executescript("""
+    CREATE TABLE IF NOT EXISTS sync_runs(
+      run_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      synced_at_utc TEXT NOT NULL, scope TEXT NOT NULL, chats INTEGER, messages INTEGER);
+    CREATE TABLE IF NOT EXISTS chats(
+      chat_id TEXT PRIMARY KEY,title TEXT NOT NULL,kind TEXT,
+      roster_time TEXT,roster_preview TEXT,
+      cached_replychains INTEGER NOT NULL,last_seen_run INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS messages(
+      chat_id TEXT NOT NULL,message_id TEXT NOT NULL,creator TEXT,
+      direction TEXT NOT NULL,time_ms INTEGER NOT NULL,text TEXT NOT NULL,
+      html TEXT NOT NULL,message_type TEXT,deleted INTEGER NOT NULL,
+      first_seen_run INTEGER NOT NULL,last_seen_run INTEGER NOT NULL,
+      PRIMARY KEY(chat_id,message_id),
+      FOREIGN KEY(chat_id) REFERENCES chats(chat_id));
+    CREATE INDEX IF NOT EXISTS ix_messages_time ON messages(time_ms DESC);
+    CREATE INDEX IF NOT EXISTS ix_messages_incoming ON messages(direction,time_ms DESC);
+    """)
+
+
+def ingest(db, chats, own, scope):
+    """Write one read into a database: the offline copy, or the in-memory view of a live read."""
+    now = dt.datetime.now(dt.timezone.utc).isoformat()
+    with db:
+        run_id = db.execute("INSERT INTO sync_runs(synced_at_utc,scope,chats,messages) VALUES(?,?,?,?)",
+                            (now, scope, len(chats), sum(len(c["messages"]) for c in chats))).lastrowid
+        for chat in chats:
+            cid = chat["threadId"]
+            db.execute("""INSERT INTO chats(chat_id,title,kind,roster_time,roster_preview,cached_replychains,last_seen_run)
+              VALUES(?,?,?,?,?,?,?) ON CONFLICT(chat_id) DO UPDATE SET
+              title=excluded.title,kind=excluded.kind,roster_time=excluded.roster_time,
+              roster_preview=excluded.roster_preview,cached_replychains=excluded.cached_replychains,
+              last_seen_run=excluded.last_seen_run""",
+                       (cid, chat["title"], chat["kind"], chat["rosterTime"], chat["rosterPreview"],
+                        chat["replyChains"], run_id))
+            for m in chat["messages"]:
+                raw = m.get("html") or ""
+                creator = m.get("creator") or ""
+                direction = "unknown" if not creator else "outgoing" if creator == own else "incoming"
+                db.execute("""INSERT INTO messages(chat_id,message_id,creator,direction,time_ms,text,html,message_type,deleted,first_seen_run,last_seen_run)
+                  VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(chat_id,message_id) DO UPDATE SET
+                  creator=excluded.creator,direction=excluded.direction,time_ms=excluded.time_ms,
+                  text=excluded.text,html=excluded.html,message_type=excluded.message_type,
+                  deleted=excluded.deleted,last_seen_run=excluded.last_seen_run""",
+                           (cid, str(m["id"]), creator, direction, int(m["timeMs"]), strip_html(raw), raw,
+                            m.get("messageType"), int(bool(m.get("deleted"))), run_id, run_id))
+    return run_id
+
+
+def connection():
+    """Where reads come from: the live client (default) or the copy saved by `sync`."""
+    global _view
+    if _view is None:
+        if OFFLINE:
+            if not DB.is_file():
+                raise RuntimeError("No offline copy. Run `python teammatic.py sync` first, or read live without --offline.")
+            _view = sqlite3.connect(DB.as_uri() + "?mode=ro", uri=True, timeout=30)
+        else:
+            chats, own, _method = collect()
+            _view = sqlite3.connect(":memory:")
+            create_schema(_view)
+            ingest(_view, chats, own, "live")
+        _view.row_factory = sqlite3.Row
+    return _view
+
+
+def close_view():
+    global _view
+    if _view is not None:
+        _view.close()
+        _view = None
 
 
 def run_query(query, params=()):
-    if not DB.is_file():
-        raise RuntimeError("No local cache yet. Run `python teammatic.py sync` first.")
-    with contextlib.closing(sqlite3.connect(DB.as_uri() + "?mode=ro", uri=True, timeout=30)) as db:
-        db.row_factory = sqlite3.Row
-        return [dict(x) for x in db.execute(query, params)]
+    return [dict(x) for x in connection().execute(query, params)]
+
+
+def sync():
+    """Save an offline copy of what the Teams client has loaded. Opt-in; reads do not need it."""
+    with exclusive_lock(DATA / ".sync.lock"):
+        chats, own, method = collect()
+        DATA.mkdir(parents=True, exist_ok=True)
+        with contextlib.closing(sqlite3.connect(DB, timeout=30)) as db:
+            db.execute("PRAGMA journal_mode=WAL")
+            create_schema(db)
+            run_id = ingest(db, chats, own, "loaded-roster-cache")
+            row = db.execute("SELECT COUNT(*),SUM(direction='incoming'),SUM(direction='outgoing') FROM messages").fetchone()
+        return dict(run_id=run_id, visible_chats=len(chats), db_messages=row[0], incoming=row[1] or 0,
+                    outgoing=row[2] or 0, own_creator=own, own_creator_source=method, db_path=str(DB))
 
 
 def list_chats():
@@ -288,18 +347,12 @@ def list_chats():
        FROM chats c ORDER BY c.cached_replychains DESC,c.title COLLATE NOCASE""")
 
 
-def incoming(limit=20, after_ms=0, only_new=False, chat_id=None, after_run=None):
-    sql = """SELECT c.title AS chat,m.chat_id,m.message_id,m.creator,m.time_ms,m.text,
-       m.first_seen_run FROM messages m JOIN chats c ON c.chat_id=m.chat_id
+def incoming(limit=20, after_ms=0, chat_id=None):
+    sql = """SELECT c.title AS chat,m.chat_id,m.message_id,m.creator,m.time_ms,m.text
+       FROM messages m JOIN chats c ON c.chat_id=m.chat_id
        WHERE m.direction='incoming' AND m.deleted=0 AND m.time_ms>=?
        AND COALESCE(m.message_type,'') NOT LIKE 'ThreadActivity/%' """
     args = [after_ms]
-    if only_new:
-        # The first sync is a cold-start baseline, not a pile of new action items.
-        sql += "AND m.first_seen_run>1 "
-    if after_run is not None:
-        sql += "AND m.first_seen_run>? "
-        args.append(after_run)
     if chat_id:
         sql += "AND m.chat_id=? "
         args.append(chat_id)
@@ -313,17 +366,22 @@ def read_chat(chat_id, limit=50, after_ms=0):
        WHERE chat_id=? AND deleted=0 AND time_ms>=? ORDER BY time_ms DESC LIMIT ?""",
                      (chat_id, after_ms, max(1, min(2000, limit))))
     if not rows and not run_query("SELECT 1 FROM chats WHERE chat_id=?", (chat_id,)):
-        raise RuntimeError("Unknown chat_id. Use `list` to see cached chats.")
+        raise RuntimeError("Unknown chat_id. Use `list` to see chats.")
     return rows[::-1]
 
 
+def find_message(chat_id, message_id):
+    rows = run_query("SELECT * FROM messages WHERE chat_id=? AND message_id=?", (chat_id, message_id))
+    return rows[0] if rows else None
+
+
 def freshness():
-    last = run_query("SELECT run_id,synced_at_utc FROM sync_runs ORDER BY run_id DESC LIMIT 1")
+    last = run_query("SELECT run_id,synced_at_utc,scope FROM sync_runs ORDER BY run_id DESC LIMIT 1")
     if not last:
-        return {"last_run": None, "synced_at_utc": None, "cache_age_seconds": None}
+        return {"source": "offline" if OFFLINE else "live", "synced_at_utc": None, "cache_age_seconds": None}
     age = dt.datetime.now(dt.timezone.utc) - dt.datetime.fromisoformat(last[0]["synced_at_utc"])
-    return {"last_run": last[0]["run_id"], "synced_at_utc": last[0]["synced_at_utc"],
-            "cache_age_seconds": int(age.total_seconds())}
+    return {"source": "live" if last[0]["scope"] == "live" else "offline",
+            "synced_at_utc": last[0]["synced_at_utc"], "cache_age_seconds": int(age.total_seconds())}
 
 
 def envelope(messages):
@@ -332,36 +390,33 @@ def envelope(messages):
 
 
 def read_cursor(name, commit):
-    """Per-consumer position: return incoming messages first seen after the last commit."""
-    latest = freshness()["last_run"] or 0
-    known = run_query("SELECT run_id FROM cursors WHERE name=?", (name,))
-    if not known and not commit:
-        raise RuntimeError(f"Unknown cursor '{name}'. Create it with --commit; it starts at the current sync.")
-    messages = incoming(limit=2000, after_run=known[0]["run_id"]) if known else []
+    """Per-consumer position: incoming messages newer than the last commit.
+
+    shortcut: a time watermark; a message that arrives late with an older timestamp is skipped.
+    Upgrade to a set of seen ids if that ever matters.
+    """
+    state = load_state()
+    cursors = state.setdefault("cursors", {})
+    if name not in cursors and not commit:
+        raise RuntimeError(f"Unknown cursor '{name}'. Create it with --commit; it starts at the newest message.")
+    created = name not in cursors
+    messages = [] if created else incoming(limit=2000, after_ms=cursors[name] + 1)
     if commit:
-        db = open_db()
-        try:
-            with db:
-                db.execute("INSERT OR REPLACE INTO cursors VALUES(?,?)", (name, latest))
-        finally:
-            db.close()
-    return {**envelope(messages), "cursor": name, "committed_run": latest if commit else None,
-            "created": not known}
+        newest = run_query("SELECT MAX(time_ms) AS t FROM messages WHERE direction='incoming'")[0]["t"] or 0
+        cursors[name] = max(newest, cursors.get(name, 0))
+        save_state(state)
+    return {**envelope(messages), "cursor": name, "committed_ms": cursors[name] if commit else None,
+            "created": created}
 
 
 def whoami(set_value=None, reset=False):
-    db = open_db()
-    try:
-        with db:
-            if reset:
-                db.execute("INSERT OR REPLACE INTO meta VALUES('own_creator','')")
-            if set_value:
-                db.execute("INSERT OR REPLACE INTO meta VALUES('own_creator',?)", (set_value,))
-        own = None if reset else stored_identity(db)
-    finally:
-        db.close()
+    if set_value or reset:
+        state = load_state()
+        state["own_creator"] = "" if reset else set_value
+        save_state(state)
+    own = stored_identity()
     if not own:
-        return {"own_creator": None, "hint": "Run `sync`; the account is detected from your own messages."}
+        return {"own_creator": None, "hint": "Run any read command with the debug port open; the account is detected."}
     return {"own_creator": own, "hint": "Use this value as own_creator in the send policy."}
 
 
@@ -371,27 +426,29 @@ def stats():
       SUM(direction='incoming') AS incoming,
       SUM(direction='outgoing') AS outgoing,
       SUM(deleted) AS deleted FROM messages""")
-    runs = run_query("SELECT MAX(run_id) AS last_run,COUNT(*) AS runs FROM sync_runs")
-    return {"chats": rows[0]["count"], "messages": msg[0], "sync": {**runs[0], **freshness()}, "db": str(DB)}
+    return {"chats": rows[0]["count"], "messages": msg[0], **freshness(),
+            "offline_copy": str(DB) if DB.is_file() else None}
 
 
 def main(argv=None):
+    global OFFLINE
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8")
+    offline = argparse.ArgumentParser(add_help=False)
+    offline.add_argument("--offline", action="store_true", help="Read the copy saved by `sync` instead of the live client")
     p = argparse.ArgumentParser(prog="teammatic", description="team-matic reader (read-only)")
     sub = p.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("sync", help="Refresh the local cache from the running Teams client (needs the debug port)")
-    sub.add_parser("list", help="Cached chats with their stable chat_id")
-    sub.add_parser("stats", help="Cache size and freshness")
-    q = sub.add_parser("incoming", help="Incoming messages from the cache, newest first")
+    sub.add_parser("sync", help="Save an offline copy of loaded chats (optional; reads are live by default)")
+    sub.add_parser("list", parents=[offline], help="Chats with their stable chat_id")
+    sub.add_parser("stats", parents=[offline], help="Counts and freshness")
+    q = sub.add_parser("incoming", parents=[offline], help="Incoming messages, newest first")
     q.add_argument("--limit", type=int, default=20)
     q.add_argument("--after-ms", type=int, default=0, help="Only messages at or after this epoch millisecond")
     q.add_argument("--chat", help="Only this chat_id")
-    q.add_argument("--new", action="store_true", dest="only_new", help="Skip the first-sync baseline")
     q.add_argument("--cursor", help="Named position for one consumer; returns what arrived since its last --commit")
-    q.add_argument("--commit", action="store_true", help="With --cursor: advance the position to the latest sync")
-    r = sub.add_parser("read", help="One conversation, both directions, oldest first")
+    q.add_argument("--commit", action="store_true", help="With --cursor: move the position to the newest message")
+    r = sub.add_parser("read", parents=[offline], help="One conversation, both directions, oldest first")
     r.add_argument("--chat", required=True)
     r.add_argument("--limit", type=int, default=50)
     r.add_argument("--after-ms", type=int, default=0)
@@ -399,6 +456,7 @@ def main(argv=None):
     w.add_argument("--set", dest="set_value", help="Set the account id explicitly")
     w.add_argument("--reset", action="store_true", help="Forget the stored account id")
     args = p.parse_args(argv)
+    OFFLINE = getattr(args, "offline", False)
     try:
         if args.cmd == "sync":
             out = sync()
@@ -407,7 +465,7 @@ def main(argv=None):
         elif args.cmd == "incoming" and args.cursor:
             out = read_cursor(args.cursor, args.commit)
         elif args.cmd == "incoming":
-            out = envelope(incoming(args.limit, args.after_ms, args.only_new, args.chat))
+            out = envelope(incoming(args.limit, args.after_ms, args.chat))
         elif args.cmd == "read":
             out = envelope(read_chat(args.chat, args.limit, args.after_ms))
         elif args.cmd == "whoami":
@@ -418,6 +476,8 @@ def main(argv=None):
     except Exception as e:
         print(json.dumps({"ok": False, "error": str(e)}, ensure_ascii=False), file=sys.stderr)
         return 1
+    finally:
+        close_view()
     return 0
 
 

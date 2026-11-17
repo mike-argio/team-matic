@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" width="1200" height="600" role="img" aria-labelledby="title desc">
   <title id="title">How team-matic works</title>
-  <desc id="desc">A script or AI agent calls team-matic with JSON. Team-matic uses a local debug connection to the signed-in Teams desktop client when explicitly enabled. A local SQLite cache allows offline reading after synchronization. There is no Graph API or hosted relay.</desc>
+  <desc id="desc">A script or AI agent calls team-matic with JSON. Team-matic uses a local debug connection to the signed-in Teams desktop client when explicitly enabled. Reads come live from the running client, and no message copy is kept unless you run sync for offline reading. There is no Graph API or hosted relay.</desc>
   <defs>
     <pattern id="dots" width="13" height="13" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.5" fill="#DFA85A" opacity=".42"/></pattern>
     <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#D45E37" stroke-width="1.9" stroke-linejoin="round"/></marker>
@@ -59,7 +59,7 @@
   <ellipse cx="425" cy="508" rx="17" ry="7" fill="#F6CB91"/>
   <path d="M408 508 V528 C408 538 442 538 442 528 V508" fill="#E9AC66" stroke="#F6CB91" stroke-width="2"/>
   <ellipse cx="425" cy="528" rx="17" ry="7" fill="#E9AC66" stroke="#F6CB91" stroke-width="2"/>
-  <text x="458" y="515" font-family="Arial,Segoe UI,sans-serif" font-size="20" font-weight="800" fill="#FFF8E7">Local SQLite cache</text>
-  <text x="458" y="539" font-family="Arial,Segoe UI,sans-serif" font-size="16" fill="#BDDCD9">Read after sync, even with Teams closed</text>
+  <text x="458" y="515" font-family="Arial,Segoe UI,sans-serif" font-size="20" font-weight="800" fill="#FFF8E7">Optional offline copy</text>
+  <text x="458" y="539" font-family="Arial,Segoe UI,sans-serif" font-size="16" fill="#BDDCD9">Only if you run sync; read it with --offline</text>
   <text x="600" y="582" text-anchor="middle" font-family="Arial,Segoe UI,sans-serif" font-size="16" font-weight="700" fill="#17424B">NO MICROSOFT GRAPH API    /    NO AZURE APP    /    NO HOSTED RELAY</text>
 </svg>

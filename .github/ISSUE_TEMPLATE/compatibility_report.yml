@@ -1,0 +1,58 @@
+name: Compatibility report
+description: Tell us whether team-matic works with your Teams setup.
+title: "[compat] "
+labels: ["compatibility"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you. Remove real names, chat ids, account ids and message text before posting.
+  - type: input
+    id: teams_version
+    attributes:
+      label: Teams client version
+      description: Teams > Settings > About Teams.
+      placeholder: "26288.2004.5269.3420"
+    validations:
+      required: true
+  - type: dropdown
+    id: account
+    attributes:
+      label: Account type
+      options:
+        - Personal (teams.live.com)
+        - Work or school
+    validations:
+      required: true
+  - type: input
+    id: ui_language
+    attributes:
+      label: Teams UI language
+      placeholder: English
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: Windows 11 24H2
+  - type: checkboxes
+    id: worked
+    attributes:
+      label: What worked
+      options:
+        - label: "`doctor` (all checks pass)"
+        - label: Live reads (`list`, `incoming`, `read`)
+        - label: "`sync` and `--offline`"
+        - label: Plain text send
+        - label: Formatted send
+        - label: "`--draft-only`"
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Redacted `doctor` output
+      render: json
+  - type: textarea
+    id: notes
+    attributes:
+      label: What failed or looked wrong

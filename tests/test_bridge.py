@@ -1,5 +1,4 @@
-"""Offline checks for the reader: parsing, account detection, sync pipeline, cursors."""
-import gzip
+"""Offline checks for the reader: parsing, account detection, live and offline reads, cursors."""
 import json
 from pathlib import Path
 import sys
@@ -69,65 +68,91 @@ class IdentityTests(unittest.TestCase):
             resolve_own_creator([chat("a", (ME, True, "Text"), (ANN, True, "Text"))])
 
 
-class SyncPipelineTests(unittest.TestCase):
+class ReadTests(unittest.TestCase):
+    """The live client is replaced by a fake collector that prints JSON, like the real one."""
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        root = Path(self.temp.name)
-        for name, value in (("DB", root / "cache.sqlite3"), ("DATA", root), ("SNAPSHOT", root / "snap.json.gz")):
+        self.root = Path(self.temp.name)
+        for name, value in (("DB", self.root / "cache.sqlite3"), ("DATA", self.root),
+                            ("STATE", self.root / "state.json"), ("OFFLINE", False)):
             patcher = patch.object(teams_bridge, name, value)
             patcher.start()
             self.addCleanup(patcher.stop)
-        patcher = patch.object(teams_bridge, "verify_port_ownership", Mock())
+        for name in ("verify_port_ownership",):
+            patcher = patch.object(teams_bridge, name, Mock())
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        self.addCleanup(teams_bridge.close_view)
+        self.client = []
+
+        def collector(*_args, **_kwargs):
+            return Mock(returncode=0, stderr="", stdout=json.dumps({"schema": teams_bridge.SCHEMA, "chats": self.client}))
+        patcher = patch.object(teams_bridge.subprocess, "run", collector)
         patcher.start()
         self.addCleanup(patcher.stop)
 
-    def sync(self, chats):
-        def collector(*_args, **_kwargs):
-            with gzip.open(teams_bridge.SNAPSHOT, "wt", encoding="utf-8") as f:
-                json.dump({"schema": teams_bridge.SCHEMA, "chats": chats}, f)
-            return Mock(returncode=0, stdout="", stderr="")
-        with patch.object(teams_bridge.subprocess, "run", collector):
-            return teams_bridge.sync()
+    def live(self, chats):
+        """Next command reads this client state, as a fresh one-shot process would."""
+        teams_bridge.close_view()
+        self.client = chats
 
-    def test_first_sync_detects_account_and_is_a_baseline(self):
-        chats = [chat("a", (ME, True, "Text"), (ANN, False, "Text"), (ANN, False, "ThreadActivity/AddMember"))]
-        out = self.sync(chats)
-        self.assertEqual((out["own_creator"], out["own_creator_source"], out["initial_baseline"]),
-                         (ME, "client-flag", True))
-        self.assertEqual((out["incoming"], out["outgoing"]), (2, 1))
-        self.assertEqual(incoming(limit=10, only_new=True), [])
+    def test_live_read_keeps_no_copy_of_messages(self):
+        self.live([chat("a", (ME, True, "Text"), (ANN, False, "Text"), (ANN, False, "ThreadActivity/AddMember"))])
         self.assertEqual([m["message_id"] for m in incoming(limit=10)], ["a-1"])  # System events are not messages.
         total = stats()
-        self.assertEqual(total["messages"]["all_messages"],
-                         total["messages"]["incoming"] + total["messages"]["outgoing"])
-        self.assertFalse((teams_bridge.DATA / ".sync.lock").exists())
+        self.assertEqual((total["source"], total["offline_copy"]), ("live", None))
+        self.assertEqual(total["messages"]["all_messages"], total["messages"]["incoming"] + total["messages"]["outgoing"])
+        self.assertEqual(sorted(p.name for p in self.root.iterdir()), ["state.json"])
+        state = json.loads((self.root / "state.json").read_text(encoding="utf-8"))
+        self.assertEqual(state, {"own_creator": ME, "chats": {"a": "Chat a"}})
+        self.assertNotIn("says", json.dumps(state))
+
+    def test_sync_saves_copy_and_offline_reads_it(self):
+        self.live([chat("a", (ME, True, "Text"), (ANN, False, "Text"))])
+        out = teams_bridge.sync()
+        self.assertEqual((out["own_creator"], out["own_creator_source"], out["incoming"]), (ME, "client-flag", 1))
+        self.assertFalse((self.root / ".sync.lock").exists())
+        self.live([])
+        teams_bridge.OFFLINE = True
+        self.assertEqual(stats()["source"], "offline")
+        self.assertEqual([m["message_id"] for m in incoming(limit=10)], ["a-1"])
+
+    def test_offline_without_copy_explains_what_to_do(self):
+        teams_bridge.OFFLINE = True
+        with self.assertRaisesRegex(RuntimeError, "sync"):
+            stats()
 
     def test_cursor_delivers_each_new_message_once(self):
-        self.sync([chat("a", (ME, True, "Text"), (ANN, False, "Text"))])
+        self.live([chat("a", (ME, True, "Text"), (ANN, False, "Text"))])
         with self.assertRaisesRegex(RuntimeError, "Unknown cursor"):
             teams_bridge.read_cursor("bot", commit=False)
         first = teams_bridge.read_cursor("bot", commit=True)
         self.assertEqual((first["messages"], first["created"], first["untrusted_content"]), ([], True, True))
-        self.sync([chat("a", (ME, True, "Text"), (ANN, False, "Text"), (ANN, False, "Text"))])
-        seen = teams_bridge.read_cursor("bot", commit=False)
-        self.assertEqual([m["message_id"] for m in seen["messages"]], ["a-2"])
+        self.live([chat("a", (ME, True, "Text"), (ANN, False, "Text"), (ANN, False, "Text"))])
+        self.assertEqual([m["message_id"] for m in teams_bridge.read_cursor("bot", commit=False)["messages"]], ["a-2"])
         self.assertEqual(len(teams_bridge.read_cursor("bot", commit=True)["messages"]), 1)
+        self.live(self.client)
         self.assertEqual(teams_bridge.read_cursor("bot", commit=False)["messages"], [])
         self.assertEqual(teams_bridge.read_cursor("other", commit=True)["messages"], [])
 
     def test_account_switch_is_refused_until_reset(self):
-        self.sync([chat("a", (ME, True, "Text"), (ANN, False, "Text"))])
-        switched = [chat("z", (BOB, True, "Text"), (EVE, False, "Text"))]
+        self.live([chat("a", (ME, True, "Text"), (ANN, False, "Text"))])
+        stats()
+        self.live([chat("z", (BOB, True, "Text"), (EVE, False, "Text"))])
         with self.assertRaisesRegex(RuntimeError, "different account"):
-            self.sync(switched)
+            stats()
         self.assertEqual(teams_bridge.whoami()["own_creator"], ME)
         self.assertIsNone(teams_bridge.whoami(reset=True)["own_creator"])
-        self.assertEqual(self.sync(switched)["own_creator"], BOB)
+        stats()
+        self.assertEqual(teams_bridge.whoami()["own_creator"], BOB)
+        self.assertEqual(teams_bridge.known_chats(), {"z": "Chat z"})
 
     def test_read_chat_orders_oldest_first_and_rejects_unknown(self):
-        self.sync([chat("a", (ME, True, "Text"), (ANN, False, "Text"))])
+        self.live([chat("a", (ME, True, "Text"), (ANN, False, "Text"))])
         self.assertEqual([m["direction"] for m in teams_bridge.read_chat("a")], ["outgoing", "incoming"])
+        self.assertEqual(teams_bridge.find_message("a", "a-1")["creator"], ANN)
         with self.assertRaisesRegex(RuntimeError, "Unknown chat_id"):
             teams_bridge.read_chat("nope")
 

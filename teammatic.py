@@ -29,7 +29,8 @@ SKILL = ROOT / "skills" / "team-matic"
 USAGE = """team-matic: automate your own Microsoft Teams chats
 
   Setup      doctor | cdp status|open|close | init | install-skill --target DIR
-  Read       sync | list | stats | incoming | read --chat ID | whoami
+  Read       list | incoming | read --chat ID | stats | whoami   (live; add --offline for a saved copy)
+             sync   saves an offline copy (optional)
   Send       plan | show | run | cancel | reconcile | abandon
 
 Start with:  python teammatic.py doctor
@@ -118,8 +119,8 @@ def doctor() -> dict:
             owned = True
     check("debug_port", port_open and owned,
           "open, owned by Teams" if owned else "open, NOT owned by Teams" if port_open else "closed",
-          "Needed only for sync and send: `python teammatic.py cdp open` (restarts Teams). "
-          "Reading the existing cache works without it.")
+          "Needed to read live and to send: `python teammatic.py cdp open` (restarts Teams). "
+          "Without it only `--offline` reads of a copy saved by `sync` work.")
     if owned and node:
         result = subprocess.run([node, str(ROOT / "scripts" / "probe.mjs")], capture_output=True, text=True,
                                 encoding="utf-8", errors="replace", timeout=60)
@@ -136,13 +137,10 @@ def doctor() -> dict:
                   {k: seen[k] for k in ("editors", "send_buttons", "selected_rows")},
                   "Needed only for send: select one chat so its message box is visible.")
 
-    if bridge.DB.is_file():
-        info = bridge.stats()
-        check("cache", info["sync"]["runs"], {"chats": info["chats"], **info["sync"]}, "Run `python teammatic.py sync`.")
-        check("account", bridge.whoami()["own_creator"], bridge.whoami()["own_creator"] or "unknown",
-              "Run `sync`, or set it with `whoami --set <creator>`.")
-    else:
-        check("cache", False, "no cache yet", "Run `python teammatic.py cdp open`, then `python teammatic.py sync`.")
+    own = bridge.whoami()["own_creator"]
+    check("account", own, own or "not detected yet",
+          "Read once with the port open (for example `list`), or set it with `whoami --set <creator>`.")
+    check("offline_copy", True, str(bridge.DB) if bridge.DB.is_file() else "none (reads are live; `sync` saves a copy)")
 
     for name in (".sync.lock", ".send.lock"):
         path = bridge.DATA / name
@@ -158,7 +156,7 @@ def doctor() -> dict:
         check("outbox", stuck == 0, f"{stuck} unresolved deliveries",
               "Check the chat in Teams, then `sync` and `reconcile --job ID --message-id ID`, or `abandon --job ID`.")
 
-    blocking = [c["check"] for c in checks if not c["ok"] and c["check"] not in ("debug_port", "composer")]
+    blocking = [c["check"] for c in checks if not c["ok"] and c["check"] not in ("debug_port", "composer", "account")]
     return {"ok": not blocking, "data_dir": str(bridge.DATA), "checks": checks}
 
 
@@ -167,7 +165,7 @@ def init() -> dict:
     path = bridge.DATA / "send-policy.json"
     if path.exists():
         return {"ok": True, "policy": str(path), "created": False}
-    own = bridge.whoami()["own_creator"] if bridge.DB.is_file() else None
+    own = bridge.whoami()["own_creator"]
     policy = {
         "enabled": False,
         "allowed_chat_ids": ["<chat_id from: python teammatic.py list>"],

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import argparse
-import contextlib
 import hashlib
 import json
 import os
@@ -145,9 +144,10 @@ def verify_content(payload, raw):
 
 
 class Outbox:
-    def __init__(self, path=None, cache=None):
+    def __init__(self, path=None, chats=None, lookup=None):
         self.path = Path(path or bridge.DATA / "outbox.sqlite3").resolve()
-        self.cache = Path(cache or bridge.DB).resolve()
+        self.chats = chats or bridge.known_chats  # chat_id -> title, from the last read
+        self.lookup = lookup or bridge.find_message  # (chat_id, message_id) -> stored message
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.db = sqlite3.connect(self.path, timeout=5)
         self.db.row_factory = sqlite3.Row
@@ -175,10 +175,9 @@ class Outbox:
             raise ValueError("Batch size exceeds policy or is empty")
         if any(m["chat_id"] not in policy["allowed_chat_ids"] for m in messages):
             raise ValueError("Recipient not allowlisted")
-        with contextlib.closing(sqlite3.connect(self.cache.as_uri() + "?mode=ro", uri=True)) as cache:
-            titles = dict(cache.execute("SELECT chat_id,title FROM chats"))
+        titles = self.chats()
         if any(m["chat_id"] not in titles for m in messages):
-            raise ValueError("Unknown chat_id: sync/list first")
+            raise ValueError("Unknown chat_id: run `list` first")
         # Displayed recipient labels are part of the approved digest.
         batch = digest({"messages": messages, "policy": policy,
                         "titles": [titles[m["chat_id"]] for m in messages]})
@@ -241,15 +240,12 @@ class Outbox:
             if not job or job["state"] not in ("attempting", "uncertain", "drafted"):
                 raise ValueError("Job must be attempting, uncertain or drafted")
             policy = self.show(job["batch"])["policy"]
-            with contextlib.closing(sqlite3.connect(self.cache.as_uri() + "?mode=ro", uri=True)) as cache:
-                cache.row_factory = sqlite3.Row
-                m = cache.execute("SELECT * FROM messages WHERE chat_id=? AND message_id=?",
-                                  (job["chat_id"], message_id)).fetchone()
+            m = self.lookup(job["chat_id"], message_id)
             payload = json.loads(job["payload"])
             if (not m or m["deleted"] or m["direction"] != "outgoing" or m["creator"] != policy["own_creator"]
                     or m["time_ms"] < (job["attempted"] - 5) * 1000
                     or squash(bridge.strip_html(m["html"])) != squash(expected_text(payload))):
-                raise ValueError("Message does not prove this delivery; run sync and inspect history")
+                raise ValueError("Message does not prove this delivery; read the chat and inspect history")
             with self.db:
                 self.db.execute("UPDATE jobs SET state='sent',message_id=?,error=NULL WHERE id=?", (message_id, job_id))
             return {"ok": True, "job": job_id, "message_id": message_id, "state": "sent"}
@@ -300,7 +296,7 @@ class Outbox:
                         results.append({"job": job["id"], "state": "drafted"})
                         break  # One composer holds one draft; the human sends it.
                     m = response.get("message", {})
-                    if (response.get("ok") is not True or not m.get("id")
+                    if (response.get("ok") is not True or not m.get("id") or str(m["id"]).startswith("-")
                             or m.get("creator") != policy["own_creator"] or m.get("deleted")):
                         raise RuntimeError("Persisted message verification failed")
                     verify_delivery(job["payload"], m.get("html", ""))
@@ -327,13 +323,6 @@ class Outbox:
 
 def live_backend(payload):
     bridge.verify_port_ownership()
-    with contextlib.closing(sqlite3.connect(bridge.DB.as_uri() + "?mode=ro", uri=True)) as cache:
-        row = cache.execute("""SELECT chat_id,message_id,html FROM messages
-          WHERE creator=? AND direction='outgoing' AND deleted=0 AND html!=''
-          ORDER BY time_ms DESC LIMIT 1""", (payload["own_creator"],)).fetchone()
-    if not row:
-        raise NotSent("No cached outgoing message proves own_creator; run sync and check `whoami`")
-    payload = {**payload, "anchor": dict(zip(("chat_id", "id", "html"), row))}
     result = subprocess.run(["node", str(ROOT / "scripts" / "send-message.mjs")],
                             input=canonical(payload), capture_output=True, text=True, encoding="utf-8", timeout=120,
                             env={**os.environ, "TEAMS_SEND_APPROVED": "YES"})
@@ -364,6 +353,7 @@ def main(argv=None):
     reconcile = sub.add_parser("reconcile", help="Record a delivery proven by synced history; never retries")
     reconcile.add_argument("--job", type=int, required=True)
     reconcile.add_argument("--message-id", required=True)
+    reconcile.add_argument("--offline", action="store_true", help="Look in the copy saved by `sync` instead of the live client")
     abandon = sub.add_parser("abandon", help="Owner only: mark an unresolved job as not delivered after a manual check")
     abandon.add_argument("--job", type=int, required=True)
     run = sub.add_parser("run", help="Send an owner-approved batch through the local Teams client")
@@ -384,6 +374,7 @@ def main(argv=None):
         elif args.command == "cancel":
             out = box.cancel(args.batch)
         elif args.command == "reconcile":
+            bridge.OFFLINE = args.offline
             out = box.reconcile(args.job, args.message_id)
         elif args.command == "abandon":
             out = box.abandon(args.job)
@@ -398,6 +389,7 @@ def main(argv=None):
         print(json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False), file=sys.stderr)
         return 1
     finally:
+        bridge.close_view()
         if box:
             box.close()
     return 0

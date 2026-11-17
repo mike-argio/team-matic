@@ -48,7 +48,7 @@ export function locate({chat_id}) {
   return {x: r.x + r.width / 2, y: r.y + r.height / 2};
 }
 
-export async function cached({chat_id, own_creator, anchor}) {
+export async function cached({chat_id, own_creator}) {
   const names = (await indexedDB.databases()).map(x => x.name)
     .filter(n => n?.includes(":replychain-manager:"));
   if (names.length !== 1) throw Error("ACCOUNT_CACHE_AMBIGUOUS");
@@ -59,7 +59,7 @@ export async function cached({chat_id, own_creator, anchor}) {
     request.onupgradeneeded = () => { request.transaction.abort(); fail(Error("CACHE_DISAPPEARED")); };
   });
   try {
-    const thread = anchor?.chat_id || chat_id;
+    const thread = chat_id;
     const result = [];
     await new Promise((ok, fail) => {
       const tx = db.transaction("replychains", "readonly");
@@ -94,6 +94,34 @@ export function selectPart({chat_id, end, all}) {
   if (end) range.collapse(false);
   const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
   return true;
+}
+
+// The Teams client itself marks messages sent by the signed-in account. One such
+// message by own_creator proves the client runs the account the policy names.
+export async function accountProof({own_creator}) {
+  const names = (await indexedDB.databases()).map(x => x.name)
+    .filter(n => n?.includes(":replychain-manager:"));
+  if (names.length !== 1) throw Error("ACCOUNT_CACHE_AMBIGUOUS");
+  const request = indexedDB.open(names[0]);
+  const db = await new Promise((ok, fail) => {
+    request.onsuccess = () => ok(request.result);
+    request.onerror = () => fail(request.error);
+    request.onupgradeneeded = () => { request.transaction.abort(); fail(Error("CACHE_DISAPPEARED")); };
+  });
+  try {
+    return await new Promise((ok, fail) => {
+      const req = db.transaction("replychains", "readonly").objectStore("replychains").openCursor();
+      let count = 0;
+      req.onerror = () => fail(req.error);
+      req.onsuccess = () => {
+        const cur = req.result;
+        if (!cur || ++count > 20000) { ok(false); return; }
+        const mine = Object.values(cur.value?.messageMap || {})
+          .some(m => m?.creator === own_creator && m.isSentByCurrentUser === true);
+        if (mine) ok(true); else cur.continue();
+      };
+    });
+  } finally { db.close(); }
 }
 
 // Rich content enters the editor the way a human paste does: the editor's own
@@ -155,9 +183,7 @@ export async function deliver(payload, browser, progress = {}) {
   };
   const initial = await state();
   if (initial.editors !== 1 || initial.blocked || squash(initial.draft)) throw Error("NONEMPTY_DRAFT_OR_UNSUPPORTED_COMPOSER");
-  if (!payload.anchor) throw Error("ACCOUNT_ANCHOR_REQUIRED");
-  const anchors = await run(cached, {...payload, anchor: payload.anchor});
-  if (!anchors.some(m => m.id === payload.anchor.id && m.html === payload.anchor.html)) throw Error("ACCOUNT_NOT_VERIFIED");
+  if (!await run(accountProof, payload)) throw Error("ACCOUNT_NOT_VERIFIED");
   if (!initial.target) {
     if (!payload.allow_navigation) throw Error("SELECT_CHAT_MANUALLY_OR_ALLOW_NAVIGATION");
     const p = await run(locate, payload);
@@ -167,7 +193,7 @@ export async function deliver(payload, browser, progress = {}) {
     for (let i = 0; i < 20; i++) { await pause(150); if ((await state()).target) break; }
   }
   await must(true); // Never overwrite destination drafts.
-  const before = new Set((await run(cached, {...payload, anchor: null})).map(m => m.id));
+  const before = new Set((await run(cached, payload)).map(m => m.id));
   if (payload.html) {
     await run(pasteHtml, payload);
     await pause(400);
@@ -195,8 +221,9 @@ export async function deliver(payload, browser, progress = {}) {
   await run(finalClick, {...payload, expected: payload.plain});
   for (let i = 0; i < 30; i++) {
     await pause(300);
-    const after = await run(cached, {...payload, anchor: null});
-    const added = after.filter(m => !before.has(m.id));
+    const after = await run(cached, payload);
+    // Teams first stores a local echo with a negative id; only the server id proves delivery.
+    const added = after.filter(m => !before.has(m.id) && !m.id.startsWith("-"));
     // Python verifies exact text and author against this persisted record.
     if (added.length === 1 && !squash((await state()).draft)) return {ok: true, message: added[0]};
     if (added.length > 1) throw Error("MULTIPLE_NEW_MESSAGES_UNCERTAIN");

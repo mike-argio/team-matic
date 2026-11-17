@@ -1,11 +1,6 @@
-// Local-only, read-only IndexedDB extraction for the chats currently loaded in the Teams chat list.
+// Local-only, read-only IndexedDB extraction (JSON to stdout) for the chats currently loaded in the Teams chat list.
 import {connectTeams} from "./cdp-client.mjs";
-import fs from "node:fs";
-import path from "node:path";
-import zlib from "node:zlib";
 
-const outPath = process.argv[2];
-if (!outPath?.endsWith(".json.gz")) throw Error("Usage: collect-cache.mjs full-output.json.gz");
 const browser = await connectTeams();
 const run = async (fn, args) => browser.evalJson("(" + fn.toString() + ")(" + JSON.stringify(args) + ")");
 
@@ -74,11 +69,8 @@ try {
     // Counts only: contact names do not belong in terminal logs.
     console.error('READ ' + (i + 1) + '/' + chats.length + ': ' + data.messages.length);
   }
-  const payload = {schema: 'teammatic-cache-v2', source: 'local_WebView2_IndexedDB_readonly',
+  const payload = {schema: 'teammatic-cache-v3', source: 'local_WebView2_IndexedDB_readonly',
     timestamp: new Date().toISOString(), host: list.host, visibleChats: chats.length, chats: snapshots};
-  fs.mkdirSync(path.dirname(outPath), {recursive: true});
-  fs.writeFileSync(outPath, zlib.gzipSync(Buffer.from(JSON.stringify(payload), 'utf8')));
-  console.log(JSON.stringify({ok: true, output: outPath, visibleChats: chats.length,
-    cacheWithMessages: snapshots.filter(x => x.messages.length > 0).length,
-    messageCount: snapshots.reduce((a, x) => a + x.messages.length, 0)}));
+  // Printed for the caller, never written to disk here.
+  process.stdout.write(JSON.stringify(payload));
 } finally { browser.close(); }

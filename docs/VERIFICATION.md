@@ -8,15 +8,16 @@ Environment of the live checks: Windows 11, Teams client `26288.2004.5269.3420`,
 
 | Capability | Live | Offline tests | Notes |
 |---|---|---|---|
-| Read the chat list and cached messages | yes | yes | About 4,700 messages in 23 chats; repeated syncs created no duplicates |
+| Read the chat list and messages live, no copy on disk | yes | yes | About 4,700 messages in 23 chats; only `state.json` written |
+| Offline copy (`sync`, then `--offline`) | yes | yes | Repeated syncs created no duplicates |
 | Sync without taking window focus | yes | n/a | Foreground monitor: 0 Teams activations in 3,546 samples while minimized |
 | New message in a chat that is not open | yes | yes | Picked up by the next sync |
 | Own-account detection without configuration | yes | yes | Client flag present on every message; detected account equals the known one |
 | `doctor` compatibility probe, `cdp open` and `cdp close` | yes | n/a | Port listener gone after `cdp close` |
 | Plain text send | yes | yes | Supervised batch of two messages through the queue |
 | Switching to another chat (`--allow-navigation`) | yes | yes | Takes focus briefly |
-| Formatted send through the paste path | pending | yes | Bold, italic, strike, code, link, lists, quote, headings, code block, title, table |
-| `--draft-only` | pending | yes | |
+| Formatted send through the paste path | yes | yes | Bold, italic, strike, code, link, lists, quote, headings, code block, title, table |
+| `--draft-only` | yes | yes | Draft left in the composer, job state `drafted` |
 | Mail merge, `occurrence`, limits, recovery states | n/a | yes | Queue logic only; no Teams involved |
 | Work or school account | no | n/a | Detected by address; untested |
 | English and other UI languages | no | yes | No localized text is used to find elements |
@@ -34,3 +35,8 @@ sends is fail-closed: if the composed draft does not contain the approved text a
   `incoming --cursor --commit`, `cdp close`, `cdp status` (closed). Every command exited 0.
   Auto-detection on the fresh snapshot returned the same account as the stored one (`client-flag`).
   No message was sent.
+- 2026-11-17: live-read release and send check, only in the account's own notes chat: one plain and one
+  formatted message sent and confirmed in history with their server message ids, one `--draft-only` job left
+  as a draft. Every format rendered; headings show as bold lines, not larger text. Found and fixed: a plain
+  send briefly reported the client's local echo id (`-1`) as proof of delivery. Ids starting with `-` are
+  now rejected in the adapter and in the queue, with an offline test. Port closed afterwards.

@@ -1,0 +1,38 @@
+name: Bug report
+description: Something does not work as documented.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Remove real names, chat ids, account ids and message text before posting.
+        Security problem? Do not post here; see SECURITY.md.
+  - type: input
+    id: command
+    attributes:
+      label: Command you ran
+      placeholder: python teammatic.py incoming --limit 10
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected
+    validations:
+      required: true
+  - type: textarea
+    id: error
+    attributes:
+      label: Error output (redacted)
+      render: json
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Redacted `doctor` output
+      render: json
+  - type: input
+    id: teams_version
+    attributes:
+      label: Teams client version and account type
+      placeholder: "26288.2004.5269.3420, personal"
