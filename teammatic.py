@@ -69,6 +69,7 @@ def restart_teams(debug: bool) -> None:
 
 
 def cdp(action: str) -> dict:
+    bridge.require_windows()
     port = bridge.cdp_port()
     if action == "open":
         if not listening():
@@ -103,6 +104,8 @@ def doctor() -> dict:
         checks.append({"check": name, "ok": bool(ok), "detail": detail, **({"fix": fix} if fix and not ok else {})})
 
     check("windows", sys.platform == "win32", sys.platform, "team-matic drives the Windows Teams client.")
+    if sys.platform != "win32":
+        return {"ok": False, "data_dir": str(bridge.DATA), "checks": checks}
     check("python", sys.version_info >= (3, 10), sys.version.split()[0], "Install Python 3.10 or newer.")
     node = shutil.which("node")
     version = subprocess.run([node, "--version"], capture_output=True, text=True).stdout.strip() if node else ""

@@ -6,6 +6,14 @@ and the guards; they cannot prove that a Teams version still has the same interf
 Environment of the live checks: Windows 11, Teams client `26288.2004.5269.3420`, personal account
 (`teams.live.com`), Polish UI, November 2026.
 
+| Platform | Live adapter |
+|---|---|
+| Windows 11, new desktop Teams | Verified only in the environment above |
+| Windows 10, new desktop Teams | Unverified |
+| macOS (including native Teams), Linux, browser/PWA on any OS | Unsupported: not the Windows desktop client |
+
+No cross-platform offline suite has been verified here.
+
 | Capability | Live | Offline tests | Notes |
 |---|---|---|---|
 | Read the chat list and messages live, no copy on disk | yes | yes | About 4,700 messages in 23 chats; only `state.json` written |

@@ -1,17 +1,10 @@
-"""Example: handle each new incoming message once.
-
-Run it by hand or from Windows Task Scheduler. It needs the debug port for `sync`
-(`python teammatic.py cdp open`). The first run only creates the cursor.
-
-    python examples/new_messages.py
-"""
+"""Print the latest loaded incoming messages once; no cursor, sync, or acknowledgment."""
 import json
 from pathlib import Path
 import subprocess
 import sys
 
 ENGINE = Path(__file__).resolve().parents[1] / "teammatic.py"
-CURSOR = "example-consumer"
 
 
 def teammatic(*args):
@@ -26,9 +19,5 @@ def handle(message):
     print(f"{message['chat']}: {message['text'][:80]!r}  (chat_id={message['chat_id']})")
 
 
-teammatic("sync")
-batch = teammatic("incoming", "--cursor", CURSOR, "--commit")
-if batch["created"]:
-    print("Cursor created. Messages that arrive from now on are reported on the next run.")
-for message in reversed(batch["messages"]):
+for message in reversed(teammatic("incoming", "--limit", "20")["messages"]):
     handle(message)

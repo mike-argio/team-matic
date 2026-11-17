@@ -40,7 +40,13 @@ def cdp_port() -> int:
     return int(raw)
 
 
+def require_windows() -> None:
+    if sys.platform != "win32":
+        raise RuntimeError("Live access requires the Windows Teams desktop client.")
+
+
 def verify_port_ownership() -> None:
+    require_windows()
     # CDP is unauthenticated. Never connect to an unknown local listener.
     script = r'''$conn=Get-NetTCPConnection -LocalPort %d -State Listen -ErrorAction SilentlyContinue |
       Where-Object {$_.LocalAddress -eq '127.0.0.1'} | Select-Object -First 1
@@ -213,9 +219,9 @@ def resolve_own_creator(chats, explicit=None):
     if ranked and ranked[0][0] >= 3 and (len(ranked) == 1 or ranked[0][0] >= 2 * ranked[1][0]):
         by_spread = ranked[0][1]
     if explicit:
-        if by_flag and by_flag != explicit:
+        if any(signal and signal != explicit for signal in (by_flag, by_spread)):
             raise RuntimeError("Teams is signed in to a different account than this data folder was set up for. "
-                               "Use a separate TEAMMATIC_DATA folder or `whoami --reset`.")
+                               "Use a separate TEAMMATIC_DATA folder for each account.")
         return explicit, "configured"
     if by_flag and by_spread and by_flag != by_spread:
         raise RuntimeError("Account signals disagree; set it explicitly with `whoami --set <creator>`.")
@@ -458,6 +464,8 @@ def main(argv=None):
     args = p.parse_args(argv)
     OFFLINE = getattr(args, "offline", False)
     try:
+        if not OFFLINE and args.cmd != "whoami":
+            require_windows()
         if args.cmd == "sync":
             out = sync()
         elif args.cmd == "list":

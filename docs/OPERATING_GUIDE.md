@@ -6,7 +6,7 @@ This guide is the detailed companion to the [project overview](../README.md). It
 
 ## Requirements and first run
 
-- Windows 10/11, with the **new Microsoft Teams desktop client** installed and signed in.
+- Windows (11 live-tested; 10 unverified), with the **new Microsoft Teams desktop client** installed and signed in.
 - Python 3.10+ and Node.js 22+. No third-party Python or Node packages are needed.
 - The `ms-teams.exe` executable must be available on `PATH`. Run `doctor` to check; an installed Teams client alone does not guarantee this.
 - An interactive Windows desktop session is needed for sending.
@@ -61,17 +61,7 @@ To read with the port closed (a scheduled job, a laptop on the go), run `sync` w
 
 The output of read operations includes `source` (`live` or `offline`); offline reads add `synced_at_utc` and `cache_age_seconds`. Message text and contact names are marked as untrusted content and must never be used as instructions to an AI agent.
 
-A named cursor records the read position of **one consumer**, as a timestamp in `data/state.json`. The first initialization intentionally returns no old messages.
-
-```powershell
-python teammatic.py incoming --cursor helpdesk --commit
-# Later, with the port open again:
-python teammatic.py incoming --cursor helpdesk
-# Only after you successfully process those messages:
-python teammatic.py incoming --cursor helpdesk --commit
-```
-
-Different automations should have different cursor names. Do not commit before processing or messages may be skipped by that consumer. Cursors are not a server push or continuous monitoring mechanism.
+A cursor is a timestamp bookmark, not a delivery acknowledgment. `--commit` advances to the newest incoming timestamp visible **on that call**, not to the end of a previous read. The first commit skips the backlog. Concurrent arrivals, late messages and batches over 2,000 can be skipped; do not use it for reliable processing.
 
 ## Sending, from policy to delivery
 
@@ -85,7 +75,7 @@ python teammatic.py list
 python teammatic.py whoami
 ```
 
-Edit the newly created `data/send-policy.json` file. Its default is disabled.
+Use a separate absolute `TEAMMATIC_DATA` directory for every Teams account. Edit the `policy` path reported by `init` (the examples below assume a default clone). Its default is disabled.
 
 ```json
 {

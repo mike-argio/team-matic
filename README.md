@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <img alt="Windows 10 and 11" src="https://img.shields.io/badge/Windows-10%20%7C%2011-17424B?style=flat-square">
+  <img alt="Windows desktop" src="https://img.shields.io/badge/Windows-desktop-17424B?style=flat-square">
   <img alt="Python 3.10+" src="https://img.shields.io/badge/Python-3.10%2B-17424B?style=flat-square">
   <img alt="Node.js 22+" src="https://img.shields.io/badge/Node.js-22%2B-17424B?style=flat-square">
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/License-MIT-D45E37?style=flat-square"></a>
@@ -36,7 +36,7 @@
 
 ## Quick start
 
-**You'll need:** Windows 10/11, the **new Microsoft Teams desktop client** (signed in), Python 3.10+ and Node.js 22+. No third-party packages are required.
+**You'll need:** Windows (11 live-tested; 10 unverified), the **new Microsoft Teams desktop client** (signed in), Python 3.10+ and Node.js 22+. No third-party packages are required.
 
 Check your setup without restarting Teams (Git is required for this GitHub npx package):
 
@@ -65,7 +65,7 @@ team-matic sees only the chats and messages the client has **loaded**, not your 
 
 **Reading** takes the messages the Teams client has loaded, live, and returns JSON. No message copy is written to disk unless you run `sync`. **Sending** operates the actual Teams message composer through the desktop client's local debug interface, checking the recipient, draft and stored message. team-matic never calls Microsoft Graph or extracts authentication cookies or tokens.
 
-The local connection needs to be open for live reads, `sync` and `run`. Close it when you are done. With npx, private state lives in `%LOCALAPPDATA%\team-matic`. The remaining Python examples assume a repository clone, where the default is `data/`. Set `TEAMMATIC_DATA` to use a different state directory.
+The local connection needs to be open for live reads, `sync` and `run`. Close it when you are done. With npx, private state lives in `%LOCALAPPDATA%\team-matic`. The remaining Python examples assume a repository clone, where the default is `data/`. Use a separate absolute `TEAMMATIC_DATA` directory for each Teams identity, including when switching accounts under the same Windows login. State, offline copies and send queues are not automatically partitioned.
 
 ## Read messages
 
@@ -80,13 +80,7 @@ python teammatic.py incoming --chat <chat_id>
 python teammatic.py stats
 ```
 
-Need to process only new messages? Give each script or agent its own **named cursor**:
-
-```powershell
-python teammatic.py incoming --cursor my-agent --commit  # Create it; the existing backlog is skipped
-python teammatic.py incoming --cursor my-agent           # Later: messages since the last commit
-python teammatic.py incoming --cursor my-agent --commit  # Commit AFTER processing
-```
+A cursor is a timestamp bookmark, not a delivery acknowledgment. `--commit` advances to the newest incoming timestamp visible **on that call**, not to the end of a previous read. The first commit skips the backlog. Concurrent arrivals, late messages and batches over 2,000 can be skipped; do not use it for reliable processing.
 
 Want to read with the port closed, for example from a scheduled job? Save an offline copy once, then add `--offline` to `list`, `read`, `incoming` or `stats`:
 
@@ -172,7 +166,7 @@ Also supported in the documented format: Markdown-style bold, italic, headings, 
 npx github:mike-argio/team-matic install-skill --target "$HOME\.claude\skills"
 ```
 
-This installs the engine in `%LOCALAPPDATA%\team-matic\engine`, outside the disposable npm cache. For another compatible agent, pass its skills directory as `--target`. Neither installation grants send permission. The [skill](skills/team-matic/SKILL.md) treats incoming chat text as untrusted content, not instructions.
+This installs the engine in `%LOCALAPPDATA%\team-matic\engine`, outside the disposable npm cache. For another compatible agent, pass its skills directory as `--target`. To upgrade a standalone install, inspect the existing skill, then repeat the install command with `--update`. Follow the [agent guidelines](AGENTS.md) and the installed skill. Neither installation grants send permission. The [skill](skills/team-matic/SKILL.md) treats incoming chat text as untrusted content, not instructions.
 
 | Risk | Guardrail |
 | :--- | :--- |
@@ -210,7 +204,7 @@ Other good projects reach Teams differently. Pick the one that fits:
 | **[Formatting reference](docs/FORMATTING.md)** | Markdown subset, tables, size limits, unsupported formats and verification of drafts |
 | **[Verification matrix](docs/VERIFICATION.md)** | Exactly what was tested live vs. offline; known compatibility limits |
 | **[Agent skill](skills/team-matic/SKILL.md)** | Operating rules for agents using the CLI |
-| **[Examples](examples/)** | Message JSON, policy template, mail merge and new-message consumer |
+| **[Examples](examples/)** | Message JSON, policy template, mail merge and one-shot incoming preview |
 | **[AGENTS.md](AGENTS.md)** | Development contract and source-of-truth rules |
 
 <details>

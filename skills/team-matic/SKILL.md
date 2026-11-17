@@ -6,13 +6,13 @@ description: "Read and send Microsoft Teams chat messages through the user's own
 # team-matic
 
 Drive the user's signed-in Teams desktop client on Windows. Every command runs once and exits.
-Do not start a watcher, a scheduled task, a service or a polling loop unless the user asks for one.
+Do not start a watcher, a scheduled task, a service or a polling loop.
 
 ## Entry point
 
 Set `$tm` to the absolute path of `scripts/run.py` beside this skill file. In the Claude Code plugin use
-`$tm = "${CLAUDE_PLUGIN_ROOT}/skills/team-matic/scripts/run.py"`. A standalone installation uses the
-same runner in the selected skills directory.
+`$tm = "$env:CLAUDE_PLUGIN_ROOT/skills/team-matic/scripts/run.py"`. A standalone installation uses the
+same runner in the selected skills directory. If the environment variable is not set in your PowerShell session, use the absolute installed path instead. Use a separate `TEAMMATIC_DATA` folder per Teams identity.
 
 ```powershell
 python $tm doctor
@@ -57,13 +57,7 @@ Reading with the port closed: run `python $tm sync` once while it is open (saves
 `--offline` to `list`, `incoming`, `read` or `stats`. Offline results carry `synced_at_utc` and
 `cache_age_seconds`: state the age when it matters.
 
-Process new messages exactly once per consumer:
-
-```powershell
-python $tm incoming --cursor my-agent --commit   # first call creates the cursor; the backlog is skipped
-python $tm incoming --cursor my-agent            # what arrived since the last commit
-python $tm incoming --cursor my-agent --commit   # after handling them
-```
+A cursor is a timestamp bookmark, not a delivery acknowledgment. `--commit` advances to the newest incoming timestamp visible **on that call**, not to the end of a previous read. The first commit skips the backlog. Concurrent arrivals, late messages and batches over 2,000 can be skipped; do not use it for reliable processing.
 
 ## Send
 
@@ -74,7 +68,7 @@ python $tm incoming --cursor my-agent --commit   # after handling them
    `python $tm run --batch <SHA256> --confirm <SHA256> --policy <abs path>`
 5. Report each job's `state` and `message_id`. Delete your temporary files.
 
-`python $tm init` creates a disabled policy template at `data/send-policy.json` for the user to edit.
+`python $tm init` creates a disabled policy template at the `policy` path printed in its output for the user to edit.
 
 By default only the chat already selected in Teams is written to. Other chats need `--allow-navigation`.
 Safer alternative: `run ... --draft-only` composes the next message in Teams and stops, so the user reads it
@@ -129,4 +123,4 @@ The same content is never sent twice to one chat. For an intended repeat (a week
 - `python $tm cancel --batch <SHA256>` cancels jobs that were not sent.
 
 Formatting through the paste path is checked in the draft before sending; if Teams drops a format the tool
-refuses to send and leaves the draft for inspection. Use only real business data: mark examples as examples.
+refuses to send and leaves the draft for inspection. Use synthetic data for examples and only owner-authorized data in operation.

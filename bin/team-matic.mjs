@@ -16,8 +16,10 @@ if (!env.TEAMMATIC_DATA && !existsSync(join(root, ".git"))) {
 
 const candidates = [["python", []], ["py", ["-3"]], ["python3", []]];
 for (const [exe, pre] of candidates) {
+  const version = spawnSync(exe, [...pre, "-c", "import sys; sys.exit(sys.version_info < (3, 10))"],
+    { stdio: "ignore", env });
+  if (version.status !== 0) continue;
   const r = spawnSync(exe, [...pre, script, ...process.argv.slice(2)], { stdio: "inherit", env });
-  if (r.error && r.error.code === "ENOENT") continue;
   process.exit(r.status ?? 1);
 }
 console.error(JSON.stringify({ ok: false, error: "Python 3.10+ not found. Install it from python.org and retry." }));

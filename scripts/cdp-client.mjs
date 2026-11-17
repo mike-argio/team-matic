@@ -43,6 +43,7 @@ async function open(target) {
 
 // The main window is found by structure (it shows the chat list), not by a localized title.
 export async function connectTeams() {
+  if (process.platform !== "win32") throw Error("Live access requires the Windows Teams desktop client.");
   const ctrl = new AbortController();
   const timeout = setTimeout(() => ctrl.abort(), 2500);
   const list = await (await fetch(BASE + "/json/list", {signal: ctrl.signal})).json();

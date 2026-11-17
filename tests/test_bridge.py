@@ -51,6 +51,11 @@ class IdentityTests(unittest.TestCase):
                  chat("c", (ME, None, "Text"), (EVE, None, "Text"))]
         self.assertEqual(resolve_own_creator(chats), (ME, "chat-spread"))
 
+    def test_configured_account_conflicts_with_spread_without_client_flag(self):
+        chats = [chat(thread, (ME, None, "Text")) for thread in "abc"]
+        with self.assertRaisesRegex(RuntimeError, "different account"):
+            resolve_own_creator(chats, explicit=ANN)
+
     def test_ambiguous_fails_closed_and_names_candidates(self):
         two = [chat("a", (ME, None, "Text"), (ANN, None, "Text")), chat("b", (ME, None, "Text"), (ANN, None, "Text"))]
         with self.assertRaisesRegex(RuntimeError, "whoami --set"):

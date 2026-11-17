@@ -83,6 +83,30 @@ class TemplateTests(unittest.TestCase):
                 expand(document)
 
 
+class IncomingExampleTests(unittest.TestCase):
+    def test_example_only_previews_loaded_messages(self):
+        with patch("subprocess.run") as child:
+            child.return_value = Mock(returncode=0, stdout='{"messages": []}')
+            runpy.run_path(str(ROOT / "examples" / "new_messages.py"))
+        child.assert_called_once()
+        self.assertEqual(child.call_args.args[0][2:], ["incoming", "--limit", "20"])
+
+
+class PlatformGuardTests(unittest.TestCase):
+    def test_unsupported_hosts_stop_before_process_socket_or_state_access(self):
+        for host in ("darwin", "linux"):
+            with self.subTest(host=host), patch.object(sys, "platform", host),                     patch("subprocess.run") as process, patch("socket.socket") as sock,                     patch("teams_send.Outbox") as box, patch("teams_bridge.load_state") as state:
+                self.assertFalse(teammatic.doctor()["ok"])
+                for args in (["cdp", "open"], ["cdp", "status"], ["cdp", "close"], ["list"], ["sync"],
+                             ["run", "--batch", "x", "--confirm", "x", "--policy", "unused"],
+                             ["reconcile", "--job", "1", "--message-id", "x"]):
+                    with contextlib.redirect_stderr(io.StringIO()) as err:
+                        self.assertEqual(teammatic.main(args), 1)
+                    self.assertIn("Windows Teams desktop client", err.getvalue())
+                for dependency in (process, sock, box, state):
+                    dependency.assert_not_called()
+
+
 class SkillTests(unittest.TestCase):
     def setUp(self):
         self.skill = ROOT / "skills" / "team-matic"

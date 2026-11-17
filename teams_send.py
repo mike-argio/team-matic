@@ -377,6 +377,8 @@ def main(argv=None):
     args = parser.parse_args(argv)
     box = None
     try:
+        if args.command == "run" or (args.command == "reconcile" and not args.offline):
+            bridge.require_windows()
         box = Outbox()
         if args.command == "plan":
             out = box.plan(load(args.input), load(args.policy))

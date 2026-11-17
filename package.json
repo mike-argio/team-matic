@@ -20,6 +20,13 @@
     "teammatic_format.py",
     "teams_bridge.py",
     "teams_send.py",
+    "AGENTS.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "docs/FORMATTING.md",
+    "docs/OPERATING_GUIDE.md",
+    "docs/VERIFICATION.md",
+    "assets/",
     "README.md",
     "LICENSE"
   ],
