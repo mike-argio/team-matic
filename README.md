@@ -1,11 +1,7 @@
-<h1 align="center"><img src="assets/team-matic-logo.png" alt="team-matic" width="320"></h1>
+<h1 align="center"><img src="assets/team-matic-hero.webp" alt="team-matic: a retro operator shows a plan to her robot at their workbench" width="100%"></h1>
 
 <p align="center">
   <strong>Your Teams chats. Your scripts. Your AI agents. You stay in control.</strong>
-</p>
-
-<p align="center">
-  <img src="assets/team-matic-hero.webp" alt="team-matic retro banner: a woman and a puzzled robot sorting envelopes beside the team-matic wordmark" width="100%">
 </p>
 
 <p align="center">
@@ -116,7 +112,8 @@ python teammatic.py plan --input examples/message.json --policy data/send-policy
 `plan` is offline. It shows all recipients, rendered text and a SHA256 digest. **Read the complete plan before approving it.**
 
 <p align="center">
-  <img src="assets/scene-review.webp" alt="Retro illustration: the woman points at one recipient on the printed plan while the robot checks the same line with a magnifier" width="560">
+  <img src="assets/scene-review.webp" alt="Retro illustration: the woman points at one recipient on the printed plan while the robot checks the same line with a magnifier" width="560"><br>
+  <em>Check who gets what. Creating the plan sends nothing.</em>
 </p>
 
 **3. Send only after explicit human approval.**
