@@ -107,7 +107,7 @@ Every result says where it came from (`source`: `live` or `offline`) and, for th
 
 ![Human-approved send workflow: allowlisted policy, exact plan, user confirmation and verified delivery](assets/diagram-send.svg)
 
-Team-matic separates **preparing a message** from **sending it**. A script or agent can prepare the draft, but it cannot grant itself permission or approve its own plan.
+Team-matic separates **preparing a message** from **sending it**. A script or agent can prepare the draft, but it cannot grant itself permission. It approves its own plans only if you switch that on in the policy.
 
 **1. Configure your allowlist.** You, not an agent, enable sending and set the allowed `chat_id` values and limits.
 
@@ -134,6 +134,8 @@ python teammatic.py cdp close
 ```
 
 The two hashes must match the approved plan. By default, team-matic writes only to the **already selected chat**. Navigating to another chat requires an explicitly authorized `--allow-navigation` flag.
+
+**Let an agent send on its own.** Set `"agent_may_send": true` in your policy and `plan` reports it. An agent may then run that plan without asking you, still limited to the allowlist, batch size, interval and daily limit. `"allow_navigation": true` does the same for switching chats. Both switches are part of the plan digest, so turning them off changes every new plan.
 
 Want to press Send yourself? `--draft-only` composes the message and pauses for your inspection. If delivery is uncertain, the queue **stops rather than blindly resending**.
 

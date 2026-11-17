@@ -27,7 +27,9 @@ use or change the code in this repository.
 - `plan` is offline. Show its full output to the owner.
 - The owner alone edits the policy file: allowlist, account, limits, `enabled`. Do not grant yourself permission.
 - `run --batch SHA256 --confirm SHA256` requires the owner's approval of that exact recipient list and text.
-  A digest you computed is not approval.
+  A digest you computed is not approval. Exception: the owner set `"agent_may_send": true` in the policy;
+  `plan` then returns `agent_may_send: true` and the agent may run that batch itself within the policy limits.
+  `"allow_navigation": true` in the policy likewise replaces the `--allow-navigation` permission.
 - Default: the selected chat only. `--allow-navigation` needs explicit permission because it can take focus.
 - Never retry `uncertain` or `attempting`. Reconcile with a proven stored message, or stop for the owner.
   `abandon` is the owner's decision after a manual check.

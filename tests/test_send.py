@@ -158,9 +158,13 @@ class OutboxTests(unittest.TestCase):
 
     def test_policy_input_and_allowlist(self):
         for change in ({"enabled": False}, {"min_interval_seconds": 0}, {"max_batch_size": True},
-                       {"allowed_chat_ids": []}, {"own_creator": ""}, {"daily_limit": 0}, {"extra": 1}):
+                       {"allowed_chat_ids": []}, {"own_creator": ""}, {"daily_limit": 0}, {"extra": 1},
+                       {"agent_may_send": "yes"}, {"allow_navigation": 1}):
             with self.subTest(change=change), self.assertRaises(ValueError):
                 self.box.plan({"messages": [{"chat_id": "chat-a", "text": "Hi"}]}, {**self.policy, **change})
+        self.assertFalse(self.box.plan({"messages": [{"chat_id": "chat-a", "text": "Hi"}]}, self.policy)["agent_may_send"])
+        granted = self.box.plan({"messages": [{"chat_id": "chat-a", "text": "Hey"}]}, {**self.policy, "agent_may_send": True})
+        self.assertTrue(granted["agent_may_send"])
         for message in ({"chat_id": "other", "text": "Hi"}, {"chat_id": "chat-a", "text": ""},
                         {"chat_id": "chat-a", "text": "Hi", "html": "<script>bad</script>"},
                         {"chat_id": "chat-a", "text": "Hi", "format": "html"},

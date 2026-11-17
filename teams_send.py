@@ -18,6 +18,8 @@ from teammatic_format import MAX_CELL, MAX_COLS, MAX_ROWS, MAX_TEXT, MAX_TITLE, 
 
 ROOT = Path(__file__).resolve().parent
 POLICY_KEYS = {"enabled", "allowed_chat_ids", "own_creator", "min_interval_seconds", "max_batch_size"}
+# Owner switches: agent_may_send lets an agent approve its own plans; allow_navigation lets runs switch chats.
+OPTIONAL_KEYS = {"daily_limit", "agent_may_send", "allow_navigation"}
 MESSAGE_KEYS = {"chat_id", "text", "title", "table", "table_header", "format", "occurrence"}
 
 
@@ -38,8 +40,11 @@ def load(path):
 
 
 def policy_check(policy):
-    if not isinstance(policy, dict) or set(policy) - {"daily_limit"} != POLICY_KEYS:
-        raise ValueError("Policy requires exactly: " + ", ".join(sorted(POLICY_KEYS)) + " (optional: daily_limit)")
+    if not isinstance(policy, dict) or set(policy) - OPTIONAL_KEYS != POLICY_KEYS:
+        raise ValueError("Policy requires exactly: " + ", ".join(sorted(POLICY_KEYS))
+                         + " (optional: " + ", ".join(sorted(OPTIONAL_KEYS)) + ")")
+    if any(key in policy and type(policy[key]) is not bool for key in ("agent_may_send", "allow_navigation")):
+        raise ValueError("agent_may_send and allow_navigation must be true or false")
     ids = policy["allowed_chat_ids"]
     if not isinstance(ids, list) or not ids or any(not isinstance(x, str) or not x for x in ids):
         raise ValueError("Explicit nonempty allowed_chat_ids required")
@@ -212,7 +217,8 @@ class Outbox:
             raise ValueError("Stored plan changed: approval digest mismatch")
         for item in jobs:
             item["preview"] = expected_text(item["payload"])
-        return {"batch": batch, "confirm": batch, "policy": policy, "jobs": jobs}
+        return {"batch": batch, "confirm": batch, "policy": policy,
+                "agent_may_send": policy.get("agent_may_send") is True, "jobs": jobs}
 
     def cancel(self, batch):
         with exclusive_lock(self.path.parent / ".send.lock"):
@@ -382,7 +388,9 @@ def main(argv=None):
             bridge.verify_port_ownership()  # Obvious port failure must not poison the queue.
             # Do not race a cache reader or another queue worker.
             with exclusive_lock(bridge.DATA / ".sync.lock"):
-                out = box.run(args.batch, args.confirm, load(args.policy), live_backend, args.allow_navigation,
+                policy = load(args.policy)
+                navigate = args.allow_navigation or policy.get("allow_navigation") is True
+                out = box.run(args.batch, args.confirm, policy, live_backend, navigate,
                               policy_loader=lambda: load(args.policy), draft_only=args.draft_only)
         print(json.dumps(out, ensure_ascii=False, indent=2))
     except Exception as exc:

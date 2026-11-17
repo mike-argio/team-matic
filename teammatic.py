@@ -169,10 +169,12 @@ def init() -> dict:
     policy = {
         "enabled": False,
         "allowed_chat_ids": ["<chat_id from: python teammatic.py list>"],
-        "own_creator": own or "<run sync, then: python teammatic.py whoami>",
+        "own_creator": own or "<port open, then: python teammatic.py whoami>",
         "min_interval_seconds": 30,
         "max_batch_size": 10,
         "daily_limit": 50,
+        "agent_may_send": False,
+        "allow_navigation": False,
     }
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(policy, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
