@@ -1,5 +1,9 @@
 # team-matic
 
+<p align="center">
+  <img src="assets/team-matic-logo.webp" alt="team-matic logo" width="96" height="96">
+</p>
+
 by [ARG·IO.](https://argio.ai)
 
 Automate your own Microsoft Teams chats from scripts and AI agents. No Azure app, no Graph API,
