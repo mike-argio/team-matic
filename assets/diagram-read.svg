@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 470" width="1200" height="470" role="img" aria-labelledby="title desc">
+  <title id="title">The read workflow</title>
+  <desc id="desc">Team-matic reads only chats and messages already loaded in the Teams desktop client. After you explicitly open its local debug port and run sync, messages are cached in SQLite. You can close the port and read the cache or use named cursors offline. Cache freshness is always reported.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="11" markerHeight="11" refX="9" refY="5" orient="auto"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#CF5B35" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <pattern id="dots" width="11" height="11" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.2" fill="#B98242" opacity=".5"/></pattern>
+  </defs>
+  <rect x="2" y="2" width="1196" height="466" rx="25" fill="#F8EED7" stroke="#17424B" stroke-width="4"/>
+  <rect x="2" y="2" width="1196" height="15" rx="7" fill="#17424B"/>
+  <rect x="1004" y="30" width="160" height="100" rx="9" fill="url(#dots)"/>
+  <text x="42" y="54" font-family="Arial,Segoe UI,sans-serif" font-size="14" font-weight="800" letter-spacing="3" fill="#C95D36">MESSAGE READING / 02</text>
+  <text x="42" y="106" font-family="Arial,Segoe UI,sans-serif" font-size="36" font-weight="900" fill="#17424B">Sync once. Read on your schedule.</text>
+  <text x="43" y="137" font-family="Arial,Segoe UI,sans-serif" font-size="18" fill="#4C6564">A local cache keeps everyday reads fast and independent of an open Teams window.</text>
+  <!-- FLOW ARROWS -->
+  <path d="M294 259 H320" stroke="#CF5B35" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <path d="M585 259 H611" stroke="#CF5B35" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <path d="M876 259 H902" stroke="#CF5B35" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <!-- CARD 1 -->
+  <rect x="49" y="168" width="244" height="219" rx="17" fill="#17424B" opacity=".15"/>
+  <rect x="43" y="162" width="244" height="219" rx="17" fill="#FFF9EC" stroke="#17424B" stroke-width="3"/>
+  <circle cx="74" cy="194" r="15" fill="#D45E37"/><text x="74" y="200" text-anchor="middle" font-family="Arial,sans-serif" font-size="16" font-weight="900" fill="#FFFFFF">1</text>
+  <text x="102" y="202" font-family="Arial,Segoe UI,sans-serif" font-size="19" font-weight="800" fill="#17424B">TEAMS CLIENT</text>
+  <rect x="72" y="224" width="185" height="73" rx="9" fill="#E3DBE8" stroke="#9587B8" stroke-width="2"/>
+  <rect x="84" y="238" width="57" height="8" rx="4" fill="#8277AB"/><rect x="84" y="257" width="135" height="8" rx="4" fill="#B5AAC9"/><rect x="84" y="275" width="113" height="8" rx="4" fill="#B5AAC9"/>
+  <text x="72" y="327" font-family="Arial,Segoe UI,sans-serif" font-size="16" font-weight="700" fill="#17424B">Signed in, chats loaded</text>
+  <text x="72" y="352" font-family="Arial,Segoe UI,sans-serif" font-size="15" fill="#4C6564">Not a full export</text>
+  <!-- CARD 2 -->
+  <rect x="340" y="168" width="244" height="219" rx="17" fill="#17424B" opacity=".15"/>
+  <rect x="334" y="162" width="244" height="219" rx="17" fill="#FFF9EC" stroke="#17424B" stroke-width="3"/>
+  <circle cx="365" cy="194" r="15" fill="#D45E37"/><text x="365" y="200" text-anchor="middle" font-family="Arial,sans-serif" font-size="16" font-weight="900" fill="#FFFFFF">2</text>
+  <text x="393" y="202" font-family="Arial,Segoe UI,sans-serif" font-size="19" font-weight="800" fill="#17424B">OPEN + SYNC</text>
+  <rect x="362" y="228" width="188" height="68" rx="10" fill="#17424B"/>
+  <text x="374" y="253" font-family="Consolas,monospace" font-size="15" font-weight="700" fill="#F4C58B">cdp open</text>
+  <text x="374" y="280" font-family="Consolas,monospace" font-size="15" fill="#C2E1DC">sync</text>
+  <text x="362" y="327" font-family="Arial,Segoe UI,sans-serif" font-size="16" font-weight="700" fill="#17424B">You start the refresh</text>
+  <text x="362" y="352" font-family="Arial,Segoe UI,sans-serif" font-size="15" fill="#4C6564">Local connection only</text>
+  <!-- CARD 3 -->
+  <rect x="631" y="168" width="244" height="219" rx="17" fill="#17424B" opacity=".15"/>
+  <rect x="625" y="162" width="244" height="219" rx="17" fill="#FFF9EC" stroke="#17424B" stroke-width="3"/>
+  <circle cx="656" cy="194" r="15" fill="#D45E37"/><text x="656" y="200" text-anchor="middle" font-family="Arial,sans-serif" font-size="16" font-weight="900" fill="#FFFFFF">3</text>
+  <text x="685" y="202" font-family="Arial,Segoe UI,sans-serif" font-size="19" font-weight="800" fill="#17424B">SQLITE CACHE</text>
+  <ellipse cx="747" cy="249" rx="54" ry="17" fill="#E8B56E" stroke="#17424B" stroke-width="3"/>
+  <path d="M693 249 V284 C693 307 801 307 801 284 V249" fill="#DDA35B" stroke="#17424B" stroke-width="3"/>
+  <ellipse cx="747" cy="284" rx="54" ry="17" fill="#E8B56E" stroke="#17424B" stroke-width="3"/>
+  <text x="653" y="327" font-family="Arial,Segoe UI,sans-serif" font-size="16" font-weight="700" fill="#17424B">Stored on your computer</text>
+  <text x="653" y="352" font-family="Arial,Segoe UI,sans-serif" font-size="15" fill="#4C6564">With freshness metadata</text>
+  <!-- CARD 4 -->
+  <rect x="922" y="168" width="244" height="219" rx="17" fill="#17424B" opacity=".15"/>
+  <rect x="916" y="162" width="244" height="219" rx="17" fill="#FFF9EC" stroke="#17424B" stroke-width="3"/>
+  <circle cx="947" cy="194" r="15" fill="#D45E37"/><text x="947" y="200" text-anchor="middle" font-family="Arial,sans-serif" font-size="16" font-weight="900" fill="#FFFFFF">4</text>
+  <text x="975" y="202" font-family="Arial,Segoe UI,sans-serif" font-size="19" font-weight="800" fill="#17424B">READ OFFLINE</text>
+  <rect x="947" y="227" width="181" height="70" rx="10" fill="#17424B"/>
+  <text x="960" y="251" font-family="Consolas,monospace" font-size="15" font-weight="700" fill="#F4C58B">incoming --cursor</text>
+  <text x="960" y="277" font-family="Consolas,monospace" font-size="15" fill="#C2E1DC">read / list / stats</text>
+  <text x="944" y="327" font-family="Arial,Segoe UI,sans-serif" font-size="16" font-weight="700" fill="#17424B">Close the debug port</text>
+  <text x="944" y="352" font-family="Arial,Segoe UI,sans-serif" font-size="15" fill="#4C6564">Read with Teams closed</text>
+  <!-- FOOTNOTE -->
+  <rect x="43" y="407" width="1118" height="41" rx="11" fill="#17424B"/>
+  <text x="602" y="434" text-anchor="middle" font-family="Arial,Segoe UI,sans-serif" font-size="17" font-weight="700" fill="#FFF6DF">Only loaded chats and message history are cached. A named cursor tracks each consumer's progress.</text>
+</svg>

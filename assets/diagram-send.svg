@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 520" width="1200" height="520" role="img" aria-labelledby="title desc">
+  <title id="title">The send approval flow</title>
+  <desc id="desc">The account owner enables sending to specific chat IDs with a local policy, runs an offline plan to preview recipients and contents, explicitly approves the exact SHA256 batch hash, and only then sends using the signed-in Teams desktop client. Failed or uncertain deliveries stop the queue rather than triggering blind retries.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="11" markerHeight="11" refX="9" refY="5" orient="auto"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#D45E37" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <pattern id="dots" width="11" height="11" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.1" fill="#D79E50" opacity=".6"/></pattern>
+  </defs>
+  <rect x="2" y="2" width="1196" height="516" rx="25" fill="#F8EED7" stroke="#17424B" stroke-width="4"/>
+  <rect x="2" y="2" width="1196" height="16" rx="7" fill="#17424B"/>
+  <rect x="985" y="28" width="175" height="99" fill="url(#dots)"/>
+  <text x="42" y="55" font-family="Arial,Segoe UI,sans-serif" font-size="14" font-weight="800" letter-spacing="3" fill="#C95D36">CONTROLLED DELIVERY / 03</text>
+  <text x="42" y="106" font-family="Arial,Segoe UI,sans-serif" font-size="37" font-weight="900" fill="#17424B">Messages go out only after you say so.</text>
+  <text x="43" y="140" font-family="Arial,Segoe UI,sans-serif" font-size="19" fill="#4C6564">Recipient rules, an exact preview and a human approval come before the Send click.</text>
+  <!-- ARROWS -->
+  <path d="M294 280 H321" stroke="#D45E37" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <path d="M585 280 H612" stroke="#D45E37" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <path d="M876 280 H903" stroke="#D45E37" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)"/>
+  <!-- POLICY -->
+  <rect x="49" y="172" width="244" height="254" rx="17" fill="#17424B" opacity=".16"/>
+  <rect x="43" y="166" width="244" height="254" rx="17" fill="#FFFAEC" stroke="#17424B" stroke-width="3"/>
+  <circle cx="76" cy="204" r="19" fill="#17424B"/><text x="76" y="211" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="900" fill="#FFF6DF">1</text>
+  <text x="104" y="212" font-family="Arial,Segoe UI,sans-serif" font-size="22" font-weight="900" fill="#17424B">POLICY</text>
+  <rect x="73" y="245" width="184" height="82" rx="11" fill="#E8F0E8" stroke="#6F9892" stroke-width="2"/>
+  <path d="M90 265 L96 271 L107 257 M90 297 L96 303 L107 289" fill="none" stroke="#17716F" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="121" y="263" width="109" height="7" rx="3" fill="#789F99"/>
+  <rect x="121" y="294" width="85" height="7" rx="3" fill="#789F99"/>
+  <text x="73" y="361" font-family="Arial,Segoe UI,sans-serif" font-size="17" font-weight="800" fill="#17424B">Owner chooses chats</text>
+  <text x="73" y="387" font-family="Arial,Segoe UI,sans-serif" font-size="16" fill="#4C6564">Allowlist + rate limits</text>
+  <!-- PLAN -->
+  <rect x="340" y="172" width="244" height="254" rx="17" fill="#17424B" opacity=".16"/>
+  <rect x="334" y="166" width="244" height="254" rx="17" fill="#FFFAEC" stroke="#17424B" stroke-width="3"/>
+  <circle cx="367" cy="204" r="19" fill="#17424B"/><text x="367" y="211" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="900" fill="#FFF6DF">2</text>
+  <text x="395" y="212" font-family="Arial,Segoe UI,sans-serif" font-size="22" font-weight="900" fill="#17424B">PLAN</text>
+  <rect x="362" y="245" width="187" height="82" rx="9" fill="#17424B"/>
+  <rect x="375" y="259" width="116" height="7" rx="3" fill="#E7BA7D"/>
+  <rect x="375" y="278" width="159" height="7" rx="3" fill="#C8E2DC"/>
+  <rect x="375" y="297" width="137" height="7" rx="3" fill="#C8E2DC"/>
+  <text x="362" y="361" font-family="Arial,Segoe UI,sans-serif" font-size="17" font-weight="800" fill="#17424B">Preview + SHA256</text>
+  <text x="362" y="387" font-family="Arial,Segoe UI,sans-serif" font-size="16" fill="#4C6564">No Teams action yet</text>
+  <!-- HUMAN APPROVAL -->
+  <rect x="631" y="172" width="244" height="254" rx="17" fill="#17424B" opacity=".16"/>
+  <rect x="625" y="166" width="244" height="254" rx="17" fill="#FFF2DA" stroke="#D45E37" stroke-width="4"/>
+  <circle cx="658" cy="204" r="19" fill="#D45E37"/><text x="658" y="211" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="900" fill="#FFFFFF">3</text>
+  <text x="687" y="212" font-family="Arial,Segoe UI,sans-serif" font-size="21" font-weight="900" fill="#17424B">YOU APPROVE</text>
+  <circle cx="745" cy="282" r="45" fill="#F3CC92" stroke="#D45E37" stroke-width="4"/>
+  <path d="M722 282 L739 298 L771 266" fill="none" stroke="#17424B" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="653" y="361" font-family="Arial,Segoe UI,sans-serif" font-size="17" font-weight="800" fill="#17424B">Approve exact hash</text>
+  <text x="653" y="387" font-family="Arial,Segoe UI,sans-serif" font-size="16" fill="#4C6564">Human, not agent</text>
+  <!-- SEND -->
+  <rect x="922" y="172" width="244" height="254" rx="17" fill="#17424B" opacity=".16"/>
+  <rect x="916" y="166" width="244" height="254" rx="17" fill="#FFFAEC" stroke="#17424B" stroke-width="3"/>
+  <circle cx="949" cy="204" r="19" fill="#17424B"/><text x="949" y="211" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" font-weight="900" fill="#FFF6DF">4</text>
+  <text x="978" y="212" font-family="Arial,Segoe UI,sans-serif" font-size="21" font-weight="900" fill="#17424B">SEND + CHECK</text>
+  <rect x="945" y="244" width="184" height="84" rx="10" fill="#DCD9EA" stroke="#897AA9" stroke-width="2"/>
+  <rect x="960" y="261" width="155" height="28" rx="11" fill="#9281B2"/>
+  <rect x="959" y="299" width="155" height="15" rx="6" fill="#FEFCFF" stroke="#9988AE"/>
+  <text x="944" y="361" font-family="Arial,Segoe UI,sans-serif" font-size="17" font-weight="800" fill="#17424B">Verify + log delivery</text>
+  <text x="944" y="387" font-family="Arial,Segoe UI,sans-serif" font-size="16" fill="#4C6564">Stop if status is unclear</text>
+  <!-- STOP RULE -->
+  <rect x="43" y="446" width="1118" height="54" rx="13" fill="#17424B"/>
+  <circle cx="76" cy="473" r="16" fill="#D45E37"/>
+  <path d="M70 467 L82 479 M82 467 L70 479" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>
+  <text x="105" y="481" font-family="Arial,Segoe UI,sans-serif" font-size="18" font-weight="800" fill="#FFF6DF">Uncertain delivery? The outbox stops. No automatic resend, no guessing.</text>
+</svg>

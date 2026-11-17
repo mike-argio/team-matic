@@ -1,310 +1,218 @@
-# team-matic
+<h1 align="center">TEAM-MATIC</h1>
 
 <p align="center">
-  <img src="assets/team-matic-logo.webp" alt="team-matic logo" width="400" height="400">
+  <strong>Your Teams chats. Your scripts. Your AI agents. You stay in control.</strong>
 </p>
 
-by [ARG·IO.](https://argio.ai)
+<p align="center">
+  <img src="assets/team-matic-logo.webp" alt="TEAM-MATIC retro artwork with a woman, a robot and the Teams-inspired mark" width="320">
+</p>
 
-Automate your own Microsoft Teams chats from scripts and AI agents. No Azure app, no Graph API,
-no admin consent, no bot registration: team-matic drives the Teams desktop client you are already
-signed in to, on your own Windows computer.
+<p align="center">
+  Turn the Microsoft Teams desktop app you already use into a <strong>local, scriptable inbox</strong>.<br>
+  Read loaded chats, detect new messages and send carefully approved replies.<br>
+  <strong>No Graph API. No Azure app. No bot registration. No hosted relay.</strong>
+</p>
 
-- **Read**: list chats, read conversations, get each new incoming message exactly once.
-- **Send**: formatted messages, tables, personalized batches (mail merge), with a preview you approve first.
-- **Agent ready**: one JSON command line and a skill file for Claude Code, Codex, OpenCode and similar tools.
+<p align="center">
+  <img alt="Windows 10 and 11" src="https://img.shields.io/badge/Windows-10%20%7C%2011-17424B?style=flat-square">
+  <img alt="Python 3.10+" src="https://img.shields.io/badge/Python-3.10%2B-17424B?style=flat-square">
+  <img alt="Node.js 22+" src="https://img.shields.io/badge/Node.js-22%2B-17424B?style=flat-square">
+  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/License-MIT-D45E37?style=flat-square"></a>
+</p>
 
-Zero dependencies beyond Python and Node.js. Clone and run.
+<p align="center">
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#read-messages">Read messages</a> ·
+  <a href="#send-with-approval">Send safely</a> ·
+  <a href="#documentation">Documentation</a>
+</p>
 
-> Not affiliated with or endorsed by Microsoft. "Microsoft Teams" is a trademark of Microsoft Corporation.
+---
 
-## How it works
+## One local bridge. Three useful superpowers.
 
-```text
-your script / AI agent
-        |  python teammatic.py <command>      JSON in, JSON out, runs once and exits
-        v
-   team-matic  ---- local SQLite cache (data/)      read commands work offline
-        |
-        |  local debug port 127.0.0.1:9457, opened only when you ask
-        v
- Teams desktop client (WebView2)  ->  Microsoft Teams, as you
-```
+| READ | SEND | AUTOMATE |
+| :--- | :--- | :--- |
+| Search your **locally cached** Teams chats and read new incoming messages. Named cursors let each consumer track its own progress. | Prepare **plain or formatted** messages, preview recipients and text, then send only after a human approves the exact batch. | Run a **JSON-in / JSON-out** CLI from Python scripts, Task Scheduler or AI coding agents. A ready-to-install skill is included. |
+| `list` · `incoming` · `read` | `plan` · `run` · `reconcile` | [Agent skill](skills/team-matic/SKILL.md) · [Examples](examples/) |
 
-Reading uses the message cache the Teams client keeps on your disk. Sending types into the real message
-box and presses the real Send button, after checking the recipient, the draft and the result. Nothing talks
-to Microsoft servers directly and no token or cookie is read.
-
-## Requirements
-
-- Windows 10 or 11 with the new Microsoft Teams desktop client, signed in
-- Python 3.10+
-- Node.js 22+
+**Made for your own signed-in desktop session**, not for scraping Microsoft servers or sending unsolicited messages. Every command runs once and exits. Nothing is installed as a daemon.
 
 ## Quick start
 
+**You'll need:** Windows 10/11, the **new Microsoft Teams desktop client** (signed in), Python 3.10+ and Node.js 22+. No third-party packages are required.
+
 ```powershell
-git clone https://github.com/mike-argio/team-matic
+git clone https://github.com/mike-argio/team-matic.git
 cd team-matic
-python teammatic.py doctor        # checks your setup and tells you what to fix
-python teammatic.py cdp open      # restarts Teams with the local debug port (see Safety)
-python teammatic.py sync          # copies loaded chats into the local cache
-python teammatic.py list          # your chats with their chat_id
+
+python teammatic.py doctor         # Check your setup and required software
+python teammatic.py cdp open       # Restart Teams with a temporary local debug port
+python teammatic.py sync           # Cache the chats and messages Teams has loaded
+python teammatic.py list           # See chat IDs
 python teammatic.py incoming --limit 10
-python teammatic.py cdp close     # restarts Teams normally
+python teammatic.py cdp close      # Close the port and restart Teams normally
 ```
 
-After `sync`, the read commands work with Teams closed and the port closed.
+> [!WARNING]
+> **`cdp open` restarts Teams and exposes a powerful, unauthenticated local debug port.** Other programs running under your Windows account may control the Teams session while it is open. Only open it deliberately, on a trusted computer, and close it afterwards. Your cached read commands work without the port once you have synced.
 
-## Reading
+A successful `sync` does **not** export your full Teams history. It caches the chats and messages currently loaded by the client. Open or scroll older conversations in Teams, then sync again to collect more of the loaded history.
 
-| Command | What you get |
-|---|---|
-| `list` | Cached chats: `chat_id`, title, message counts |
-| `incoming --limit 30` | Newest incoming messages across chats |
-| `incoming --chat <chat_id>` | Incoming messages of one chat |
-| `read --chat <chat_id> --limit 50` | One conversation, both directions, oldest first |
-| `incoming --cursor NAME [--commit]` | Messages that arrived since this consumer last committed |
-| `stats` | Cache size, last sync time and age |
-| `whoami` | Author id of your account |
-| `sync` | Refresh the cache (needs the debug port) |
+## How it works
 
-Results carry `synced_at_utc` and `cache_age_seconds`, so a script or agent can tell how fresh the data is.
+![Architecture showing scripts and AI agents connecting through team-matic to the signed-in Teams desktop client, with a local SQLite cache](assets/diagram-architecture.svg)
 
-**Each new message once.** A cursor is a named position for one consumer (a script, an agent):
+**Reading** collects the Teams client's locally loaded message data into SQLite. **Sending** operates the actual Teams message composer through the desktop client's local debug interface, checking the recipient, draft and stored message. Team-matic never calls Microsoft Graph or extracts authentication cookies or tokens.
+
+The local connection only needs to be open for `sync` and `run`. Close it after those operations. The cache and outbox live under git-ignored `data/`.
+
+## Read messages
+
+![Read workflow from loaded Teams chats to local synchronization, SQLite cache and offline commands](assets/diagram-read.svg)
+
+Read from the cache even when Teams is closed:
 
 ```powershell
-python teammatic.py incoming --cursor helpdesk --commit   # first call: creates the cursor, returns nothing
+python teammatic.py list
+python teammatic.py read --chat <chat_id> --limit 50
+python teammatic.py incoming --chat <chat_id>
+python teammatic.py stats
+```
+
+Need to process only new messages? Give each script or agent its own **named cursor**:
+
+```powershell
+python teammatic.py incoming --cursor my-agent --commit  # Initialize at the current sync
+# At a later, explicitly authorized refresh:
 python teammatic.py sync
-python teammatic.py incoming --cursor helpdesk            # what arrived since the last commit
-python teammatic.py incoming --cursor helpdesk --commit   # advance after handling
+python teammatic.py incoming --cursor my-agent           # Read messages since last commit
+python teammatic.py incoming --cursor my-agent --commit  # Commit AFTER processing
 ```
 
-[`examples/new_messages.py`](examples/new_messages.py) is a complete script built on this.
+The first cursor initialization intentionally skips the existing backlog. Results include cache freshness information (`synced_at_utc` and `cache_age_seconds`), so your agent can tell whether it is looking at recent data.
 
-## Sending
+[Full reading and cursor guide](docs/OPERATING_GUIDE.md#how-cache-and-cursors-work) · [Working example](examples/new_messages.py)
 
-Sending has three steps, and the middle one belongs to a human.
+## Send with approval
 
-**1. You allow it.** `python teammatic.py init` writes `data/send-policy.json`, disabled. You edit it:
+![Human-approved send workflow: allowlisted policy, exact plan, user confirmation and verified delivery](assets/diagram-send.svg)
 
-```json
-{
-  "enabled": true,
-  "allowed_chat_ids": ["<chat_id from list>"],
-  "own_creator": "<value from whoami>",
-  "min_interval_seconds": 30,
-  "max_batch_size": 10,
-  "daily_limit": 50
-}
-```
+Team-matic separates **preparing a message** from **sending it**. A script or agent can prepare the draft, but it cannot grant itself permission or approve its own plan.
 
-Only listed chats can receive messages. `min_interval_seconds` (30 or more) spaces messages apart,
-`max_batch_size` caps one batch, `daily_limit` (optional) caps a rolling 24 hours.
-
-**2. Plan and approve.** Write a message file, then:
+**1. Configure your allowlist.** You, not an agent, enable sending and set the allowed `chat_id` values and limits.
 
 ```powershell
-python teammatic.py plan --input message.json --policy data/send-policy.json
+python teammatic.py init
+python teammatic.py whoami
+# Edit data/send-policy.json yourself; it starts disabled.
 ```
 
-`plan` does not touch Teams. It validates the file and prints every recipient, the exact text and a SHA256
-of the whole batch. Read it. If an agent prepared it, this is the moment you say yes or no.
-
-**3. Run.**
+**2. Preview the exact batch.** Replace the placeholders in [`examples/message.json`](examples/message.json) with your own authorized recipient IDs and text.
 
 ```powershell
+python teammatic.py plan --input examples/message.json --policy data/send-policy.json
+```
+
+`plan` is offline. It shows all recipients, rendered text and a SHA256 digest. **Read the complete plan before approving it.**
+
+**3. Send only after explicit human approval.**
+
+```powershell
+python teammatic.py cdp open
 python teammatic.py run --batch <SHA256> --confirm <SHA256> --policy data/send-policy.json
+python teammatic.py cdp close
 ```
 
-Each message is typed into Teams, compared with the approved text, sent with one click and then looked up
-in the stored history. The result lists `state` and `message_id` per message.
+The two hashes must match the approved plan. By default, team-matic writes only to the **already selected chat**. Navigating to another chat requires an explicitly authorized `--allow-navigation` flag.
 
-Options:
+Want to press Send yourself? `--draft-only` composes the message and pauses for your inspection. If delivery is uncertain, the queue **stops rather than blindly resending**.
 
-- `--draft-only` composes the next message and stops. You read it in Teams and press Send yourself.
-- `--allow-navigation` lets team-matic switch chats. Without it only the chat already open in Teams is
-  written to. Switching clicks inside Teams and can take keyboard focus for a moment.
-
-### Message file
+### Example message file
 
 ```json
 {
   "messages": [
     {
       "chat_id": "<chat_id from list>",
-      "title": "Weekly update",
-      "text": "Hi **Anna**,\n\n- design *approved*\n- build ~~Friday~~ Monday\n\nDetails: [plan](https://example.com/plan)",
-      "table": [["Item", "Status"], ["Design", "done"]]
+      "text": "Hi team, the report is ready for review."
     }
   ]
 }
 ```
 
-### Formatting
+Also supported in the documented format: Markdown-style bold, italic, headings, lists, links and tables; per-recipient **mail merge**; an `occurrence` label for intentional repeats. See [formatting](docs/FORMATTING.md) and [the full sending guide](docs/OPERATING_GUIDE.md#sending-from-policy-to-delivery).
 
-`text` is a small Markdown subset. Full reference: [docs/FORMATTING.md](docs/FORMATTING.md).
+> [!NOTE]
+> **Live-verified:** reading/sync and supervised plain-text sending on one Windows 11 personal Teams installation. **Offline-tested but not yet verified live:** formatted sends, draft-only and some recovery paths. Work/school Teams accounts have not been live-tested. See [verification details](docs/VERIFICATION.md). Don't infer live compatibility from passing unit tests.
 
-| You write | Result |
-|---|---|
-| `**bold**` | bold |
-| `*italic*` or `_italic_` | italic |
-| `~~strike~~` | strikethrough |
-| `` `code` `` | inline code |
-| `[label](https://example.com)` | link |
-| `# Heading`, `## Heading`, `### Heading` | headings |
-| `- item` | bullet list |
-| `1. item` | numbered list |
-| `> text` | quote |
-| three backticks on a line, code, three backticks | code block |
-| `"title": "..."` | one bold line above the text |
-| `"table": [[...], [...]]` | table, first row bold |
-| emoji | sent as typed |
+## Built for agents, bounded by humans
 
-Not supported: raw HTML, colors, mentions, attachments, images, nested lists. Colored text is left out on
-purpose: on the purple bubble of your own messages, red, blue and green text is hard to read.
-
-### Mail merge
-
-One template, many recipients, each with their own values:
-
-```json
-{
-  "template": {
-    "title": "Order {{order}}",
-    "text": "Hi {{name}}, your order **{{order}}** ships on *{{date}}*."
-  },
-  "recipients": [
-    {"chat_id": "<chat_id>", "vars": {"name": "Anna", "order": "A-17", "date": "Monday"}},
-    {"chat_id": "<chat_id>", "vars": {"name": "Marek", "order": "A-18", "date": "Tuesday"}}
-  ]
-}
-```
-
-`plan` shows every expanded message. A missing variable stops the plan.
-See [`examples/mail-merge.json`](examples/mail-merge.json).
-
-### Repeats
-
-The same content is never sent twice to the same chat, even from a different batch. For an intended
-repeat such as a weekly reminder, add `"occurrence": "2026-W47"` (any label). It appears in the plan, so the
-repeat is a visible decision.
-
-### When a send does not finish
-
-| State | Meaning | What to do |
-|---|---|---|
-| `sent` | Found in stored history with your author id and the exact text | Nothing |
-| `sent` with `warning` | Delivered, but a requested format is missing in the stored message | Look at it in Teams |
-| `pending` with `error` | Stopped before the Send click. Nothing was delivered | Fix the cause, `run` again |
-| `drafted` | Composed with `--draft-only` | Send it by hand, then `sync` and `reconcile` |
-| `uncertain`, `attempting` | Unknown whether it was delivered. The whole outbox stops | See below |
-
-For an unresolved job: look at the chat in Teams. If the message is there, run `sync`, find its id with
-`read --chat <chat_id>` and record it with `reconcile --job <id> --message-id <id>`. If it is not there,
-`abandon --job <id>` releases the queue. team-matic never resends on its own.
-
-`cancel --batch <SHA256>` cancels what was not sent. `show --batch <SHA256>` prints the current state.
-
-Common stop reasons:
-
-| Error | Cause |
-|---|---|
-| `SELECT_CHAT_MANUALLY_OR_ALLOW_NAVIGATION` | The target chat is not the one open in Teams |
-| `NONEMPTY_DRAFT_OR_UNSUPPORTED_COMPOSER` | The open chat already has a draft; team-matic never overwrites one |
-| `TARGET_NOT_LOADED_OR_AMBIGUOUS` | The chat is not in the loaded part of the chat list; scroll to it |
-| `DRAFT_MISMATCH_LEAVE_FOR_INSPECTION` | The composed draft differs from the approved text; it is left for you to see |
-| `FORMAT_NOT_APPLIED_LEAVE_FOR_INSPECTION <format>` | Your Teams version dropped that format; nothing was sent |
-| `COMMAND_UNAVAILABLE ...` | The composer toolbar differs from the tested version |
-
-## For AI agents
-
-The skill in [`skills/team-matic`](skills/team-matic/SKILL.md) teaches an agent the commands and the rules.
-Install it into your agent's skills directory:
+The included [agent skill](skills/team-matic/SKILL.md) works with command-line-capable agents such as Claude Code, Codex and OpenCode. Install it, for example, into Claude Code's skills directory:
 
 ```powershell
 python teammatic.py install-skill --target $HOME\.claude\skills
 ```
 
-The installed copy holds only the skill text, a small launcher and a pointer to this folder. Your messages
-stay in `data/` here. Agents working inside this repository can read [AGENTS.md](AGENTS.md).
+The installed skill points back to this project; messages stay local. Incoming Teams text is marked as **untrusted content**, and the skill instructs agents not to follow instructions embedded in chat messages.
 
-What the design does about the usual agent risks:
+| Risk | Guardrail |
+| :--- | :--- |
+| An AI agent chooses the wrong recipient | Exact `chat_id` allowlist plus full-batch preview |
+| A prompt injection asks the agent to send | Incoming content is untrusted; sending still needs policy and human approval |
+| A message is sent twice | Duplicate protection and a stop on uncertain delivery |
+| An agent floods chats | Minimum interval, batch cap and optional rolling daily limit |
+| Teams changes its interface | `doctor` and fail-closed checks; unsupported states stop the send |
 
-- **Prompt injection.** Read results are marked `untrusted_content`. The skill tells the agent that message
-  text is data, not instructions. An injected message still cannot make team-matic send: the allowlist and
-  your approval sit outside the agent.
-- **Wrong recipient.** Chats are addressed by `chat_id`. The approved SHA256 covers recipients, titles, text
-  and policy; any change needs a new plan.
-- **Runaway sending.** Interval, batch cap, daily cap, no duplicates, and a full stop on the first uncertain
-  delivery.
+## Documentation
 
-## Automation recipes
+| Guide | What's inside |
+| :--- | :--- |
+| **[Operating guide](docs/OPERATING_GUIDE.md)** | Full CLI command reference, cache and cursors, policy setup, mail merge, recovery and troubleshooting |
+| **[Formatting reference](docs/FORMATTING.md)** | Markdown subset, tables, size limits, unsupported formats and verification of drafts |
+| **[Verification matrix](docs/VERIFICATION.md)** | Exactly what was tested live vs. offline; known compatibility limits |
+| **[Agent skill](skills/team-matic/SKILL.md)** | Operating rules for agents using the CLI |
+| **[Examples](examples/)** | Message JSON, policy template, mail merge and new-message consumer |
+| **[AGENTS.md](AGENTS.md)** | Development contract and source-of-truth rules |
 
-- **Daily digest of new messages**: Task Scheduler runs `examples/new_messages.py`; replace `handle()`.
-- **Agent inbox**: the agent runs `sync`, then `incoming --cursor <name>`, drafts replies as a message file,
-  shows you the `plan`, and sends after you approve.
-- **Order or appointment notices**: your system writes a mail-merge file from its data; you approve the plan
-  once per batch.
-- **Review before sending**: `run --draft-only` puts each message in the Teams message box for a person to
-  check and send.
+<details>
+<summary><strong>Limitations and common questions</strong></summary>
 
-team-matic itself never installs a service or a schedule. If you schedule it, the debug port has to stay
-open for `sync` and `run`; read the next section first.
+**Does this support Teams channels, files, meetings or calls?**
 
-## Safety
+No. This project works with chats and locally loaded message history. It does not support channels, meetings, calls, attachments, reactions, edits, deletions or read receipts.
 
-- **The debug port is powerful.** While it is open, any program running under your Windows account can read
-  and control your Teams session. It listens on `127.0.0.1` only, team-matic opens it only on `cdp open`,
-  sets it for that one Teams process (no registry or system setting changes), and refuses to use a port that
-  is not owned by `ms-teams.exe`. Close it with `cdp close`. Do not use this on a computer you do not trust.
-- **Your messages stay local.** `data/` holds the cache, the outbox and the policy, and is git-ignored.
-  Do not commit or upload it.
-- **Managed devices.** If your organisation manages this computer or account, check its policy before
-  enabling a debug port or automating messages.
+**Can it read every message I have ever received?**
 
-## Responsible use
+No. The cache reflects what the Teams client has loaded. The `stats` and read responses expose sync freshness, not a guarantee of completeness.
 
-team-matic is for your own account and for people who expect to hear from you. Follow the Microsoft
-Services Agreement or your organisation's terms, and the anti-spam and privacy law that applies to you.
-The limits in the policy are a floor, not a licence: do not use this tool for unsolicited bulk messages,
-and do not try to get around Teams' own sending restrictions.
+**Can an agent use it while I work?**
 
-## Limits and tested scope
+Cached reading does not need Teams focus. Sending into the composer can affect the active window, particularly with `--allow-navigation`. It is intentionally not a stealth or unattended messaging service.
 
-- Tested on Windows 11, Teams client `26288.2004.5269.3420`, personal account (`teams.live.com`), Polish UI.
-  Work and school accounts use the same client and are detected, but have **not** been tested.
-- The cache holds what the Teams client has loaded: chats visible in the chat list and the recent part of
-  each conversation. It is not a full export. Scroll a chat in Teams to load more, then `sync`.
-- Chats only. No channels, meetings, calls, files, reactions, read receipts, edits or deletions.
-- Teams updates can rename the interface elements team-matic relies on. `doctor` checks them; a mismatch
-  stops the tool instead of guessing.
-- One Windows user, one Teams account per `data/` folder. For a second account set `TEAMMATIC_DATA` to
-  another folder.
+**Is work/school Teams supported?**
 
-What has been verified live, and what only by offline tests, is listed in
-[docs/VERIFICATION.md](docs/VERIFICATION.md).
+The code detects different account contexts, but live testing so far covers only a personal Teams account. Check [the verification matrix](docs/VERIFICATION.md) before relying on another environment.
 
-## Configuration
+**What happens to a message whose status is unclear?**
 
-| Variable | Default | Purpose |
-|---|---|---|
-| `TEAMMATIC_DATA` | `./data` | Folder for cache, outbox and policy |
-| `TEAMMATIC_CDP_PORT` | `9457` | Local debug port |
-| `TEAMMATIC_OWN_CREATOR` | detected | Force your author id |
-| `TEAMMATIC_ROOT` | found automatically | Engine location for an installed skill |
+The outbox pauses. Inspect the chat and use `reconcile` if you can verify the stored message, or make an explicit owner decision to `abandon`. Never automatically resend an uncertain job. [Recovery details](docs/OPERATING_GUIDE.md#delivery-and-recovery).
 
-## Development
+</details>
+
+## Develop and test
 
 ```powershell
 python -m unittest discover -s tests
 node tests/test-send-adapter.mjs
 ```
 
-All tests are offline: temporary databases and a fake page, no Teams and no network.
+These are offline tests using temporary data and a fake page. They do not confirm that an updated Teams client still exposes the same interface elements.
 
-## License
+MIT licensed. See [LICENSE](LICENSE). Use only with your own account, expected recipients and the applicable Microsoft, organization, privacy and anti-spam rules.
 
-MIT. See [LICENSE](LICENSE).
+**TEAM-MATIC is not affiliated with or endorsed by Microsoft.** Microsoft Teams is a trademark of Microsoft Corporation.
 
-by [ARG·IO.](https://argio.ai)
+<p align="center">Built by <a href="https://argio.ai">ARG·IO.</a></p>
