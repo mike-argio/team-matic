@@ -142,7 +142,7 @@ class SkillTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 teammatic.install_skill(target, update=False)
             engine = Path(out["engine"])
-            self.assertEqual(engine, Path(tmp) / "team-matic" / "engine")
+            self.assertTrue(engine.samefile(Path(tmp) / "team-matic" / "engine"))
             policy = engine.parent / "send-policy.json"
             policy.write_bytes(b"preserve owner settings")
             (engine / "teams_send.py").write_bytes(b"stale runtime")
