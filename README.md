@@ -1,7 +1,7 @@
 # team-matic
 
 <p align="center">
-  <img src="assets/team-matic-logo.webp" alt="team-matic logo" width="96" height="96">
+  <img src="assets/team-matic-logo.webp" alt="team-matic logo" width="400" height="400">
 </p>
 
 by [ARG·IO.](https://argio.ai)
