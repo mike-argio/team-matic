@@ -29,13 +29,16 @@
   <a href="#documentation">Documentation</a>
 </p>
 
+> [!IMPORTANT]
+> **Experimental, provided as is, no warranty.** Verified live on one personal Teams account (Windows 11, Polish UI). Work or school accounts and other UI languages are untested, not known to be incompatible. A Teams update can break it; guards then stop instead of guessing. See [verification](docs/VERIFICATION.md).
+
 ---
 
 ## One local bridge. Three useful superpowers.
 
 | READ | SEND | AUTOMATE |
 | :--- | :--- | :--- |
-| Search your **locally cached** Teams chats and read new incoming messages. Named cursors let each consumer track its own progress. | Prepare **plain or formatted** messages, preview recipients and text, then send only after a human approves the exact batch. | Run a **JSON-in / JSON-out** CLI from Python scripts, Task Scheduler or AI coding agents. A ready-to-install skill is included. |
+| Read your Teams chats **live** from the desktop app and pick up new incoming messages. Named cursors let each consumer track its own progress. | Prepare **plain or formatted** messages, preview recipients and text, then send only after a human approves the exact batch. | Run a **JSON-in / JSON-out** CLI from Python scripts, Task Scheduler or AI coding agents. A ready-to-install skill is included. |
 | `list` · `incoming` · `read` | `plan` · `run` · `reconcile` | [Agent skill](skills/team-matic/SKILL.md) · [Examples](examples/) |
 
 **Made for your own signed-in desktop session**, not for scraping Microsoft servers or sending unsolicited messages. Every command runs once and exits. Nothing is installed as a daemon.
@@ -169,6 +172,26 @@ The installed skill points back to this project; messages stay local. Incoming T
 | A message is sent twice | Duplicate protection and a stop on uncertain delivery |
 | An agent floods chats | Minimum interval, batch cap and optional rolling daily limit |
 | Teams changes its interface | `doctor` and fail-closed checks; unsupported states stop the send |
+
+## Security model
+
+- `cdp open` restarts Teams with a debug port on `127.0.0.1:9457`. It has **no authentication**: while it is open, any program running under your Windows account can control your Teams session. Other machines cannot reach it.
+- The exposure lasts from `cdp open` to `cdp close`. `python teammatic.py cdp status` tells you whether it is open. Quitting Teams from the tray and starting it normally also closes it.
+- Team-matic itself only runs fixed read and send functions through the port. It does not extract tokens or call Microsoft servers.
+- Sending needs three things an agent cannot give itself: an owner-edited allowlist, an exact plan and a human approval of its SHA256.
+
+Report vulnerabilities privately: [SECURITY.md](SECURITY.md).
+
+## How it compares
+
+Other good projects reach Teams differently. Pick the one that fits:
+
+| Approach | Examples | Good at | Trade-off |
+| :--- | :--- | :--- | :--- |
+| Microsoft Graph | [floriscornel/teams-mcp](https://github.com/floriscornel/teams-mcp), [osodevops/ms-teams-cli](https://github.com/osodevops/ms-teams-cli) | Full API, channels, cross-platform | Work or school tenant, app consent |
+| Web session tokens | [m0nkmaster/msteams-mcp](https://github.com/m0nkmaster/msteams-mcp) | Search, read, send, `npx` install | Uses session tokens against Teams services |
+| Local cache file, read only | [KamorionLabs/msteams-local-mcp](https://github.com/KamorionLabs/msteams-local-mcp) | Reading without a port or restart | Cannot send |
+| **team-matic** | this repo | Owner-approved batches, mail merge, formats checked before Send, personal accounts | Windows only, debug port while in use, can take focus when sending |
 
 ## Documentation
 
