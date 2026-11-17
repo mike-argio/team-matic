@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/team-matic-logo.webp" alt="TEAM-MATIC retro artwork with a woman, a robot and the Teams-inspired mark" width="320">
+  <img src="assets/team-matic-hero.webp" alt="TEAM-MATIC retro banner: a woman and a puzzled robot sorting envelopes next to the T-M mark" width="100%">
 </p>
 
 <p align="center">
@@ -124,6 +124,10 @@ python teammatic.py plan --input examples/message.json --policy data/send-policy
 ```
 
 `plan` is offline. It shows all recipients, rendered text and a SHA256 digest. **Read the complete plan before approving it.**
+
+<p align="center">
+  <img src="assets/scene-review.webp" alt="Retro illustration: the woman points at one recipient on the printed plan while the robot checks the same line with a magnifier" width="560">
+</p>
 
 **3. Send only after explicit human approval.**
 
