@@ -1,0 +1,14 @@
+{
+  "messages": [
+    {
+      "chat_id": "<chat_id from: python teammatic.py list>",
+      "title": "🚀 Release 2.4 is live (example data)",
+      "text": "Hi team,\n\nthe release went out this morning. **Nothing to do** on your side.\n\n## What changed\n\n- faster search, *about twice as quick*\n- export to CSV\n- ~~legacy importer~~ removed\n\n1. Update the desktop app\n2. Sign in again\n\n> Rollback stays possible until Friday.\n\nRun `app --version` to check, full notes: [changelog](https://example.com/changelog)\n\n```\napp --version\n2.4.0\n```",
+      "table": [
+        ["Area", "Status", "Owner"],
+        ["Search", "✅ done", "Anna"],
+        ["Export", "✅ done", "Marek"]
+      ]
+    }
+  ]
+}

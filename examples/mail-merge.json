@@ -1,0 +1,18 @@
+{
+  "template": {
+    "title": "📦 Order {{order}} (example data)",
+    "text": "Hi {{name}},\n\nyour order **{{order}}** ships on *{{date}}*. Reply here if the address changed.",
+    "table": [["Item", "Qty"], ["{{item}}", "{{qty}}"]],
+    "occurrence": "2026-W47"
+  },
+  "recipients": [
+    {
+      "chat_id": "<chat_id of the first customer>",
+      "vars": {"name": "Anna", "order": "A-17", "date": "Monday", "item": "Desk lamp", "qty": 2}
+    },
+    {
+      "chat_id": "<chat_id of the second customer>",
+      "vars": {"name": "Marek", "order": "A-18", "date": "Tuesday", "item": "Monitor arm", "qty": 1}
+    }
+  ]
+}
