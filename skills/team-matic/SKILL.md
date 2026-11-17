@@ -17,6 +17,8 @@ python $tm doctor
 ```
 
 `doctor` returns pass/fail checks, each with a fix. Run it first and whenever a command fails.
+Top-level `ok: true` means reading works. A failed `debug_port` or `composer` check does not clear it,
+because only `sync` and sending need those; read their `fix` before syncing or sending.
 Output is JSON on stdout. Errors are `{"ok": false, "error": ...}` on stderr with a nonzero exit code.
 Report an error as an error.
 
@@ -40,6 +42,7 @@ python $tm incoming --limit 30          # newest incoming messages
 python $tm incoming --chat <chat_id>
 python $tm read --chat <chat_id> --limit 50   # one conversation, both directions
 python $tm stats                        # size and age of the cache
+python $tm whoami                       # author id of the signed-in account (own_creator for the policy)
 ```
 
 These read the local cache and need no debug port. Results carry `synced_at_utc` and `cache_age_seconds`:
