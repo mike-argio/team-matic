@@ -123,4 +123,15 @@ assert.equal(progress.clicked, false);
 draft = ""; draftHtml = "";
 await assert.rejects(deliver({...rich, own_creator: "8:someone-else"}, browser, progress), /ACCOUNT_NOT_VERIFIED/);
 assert.equal(progress.clicked, false);
+// Teams refusing the recipient ("wait until they reply") gets its own code, before any input.
+const realOne = document.querySelector;
+document.querySelector = selector => selector.includes("compose-disabled") ? {} : realOne(selector);
+await assert.rejects(deliver(rich, browser, progress), /COMPOSE_BLOCKED_BY_TEAMS/);
+document.querySelector = realOne;
+// A draft in another, currently selected chat does not block navigating to the target.
+selected = "other"; draft = "someone's draft";
+await assert.rejects(deliver({...rich, chat_id: "chat-a"}, browser, progress), /SELECT_CHAT_MANUALLY_OR_ALLOW_NAVIGATION/);
+selected = "chat-a"; draft = "";
+assert.equal(clicks, 1);
+assert.equal(progress.clicked, false);
 console.log("Adapter guard checks PASS (offline; no UI compatibility claim)");

@@ -173,6 +173,8 @@ export async function deliver(payload, browser, progress = {}) {
   const state = () => run(uiState, payload);
   const must = async (empty = false) => {
     const s = await state();
+    // Teams itself refuses this recipient (for example "wait until they reply"); never work around it.
+    if (s.target && s.blocked) throw Error("COMPOSE_BLOCKED_BY_TEAMS");
     if (!s.target || s.editors !== 1 || s.blocked || (empty && squash(s.draft))) throw Error("UNSAFE_TARGET_OR_DRAFT");
     return s;
   };
@@ -182,7 +184,9 @@ export async function deliver(payload, browser, progress = {}) {
     }
   };
   const initial = await state();
-  if (initial.editors !== 1 || initial.blocked || squash(initial.draft)) throw Error("NONEMPTY_DRAFT_OR_UNSUPPORTED_COMPOSER");
+  // Only the destination composer matters; navigating away keeps another chat's draft in that chat.
+  if (initial.target && initial.blocked) throw Error("COMPOSE_BLOCKED_BY_TEAMS");
+  if (initial.target && (initial.editors !== 1 || squash(initial.draft))) throw Error("NONEMPTY_DRAFT_OR_UNSUPPORTED_COMPOSER");
   if (!await run(accountProof, payload)) throw Error("ACCOUNT_NOT_VERIFIED");
   if (!initial.target) {
     if (!payload.allow_navigation) throw Error("SELECT_CHAT_MANUALLY_OR_ALLOW_NAVIGATION");

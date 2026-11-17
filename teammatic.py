@@ -46,7 +46,7 @@ def listening() -> bool:
 
 def teams_running() -> bool:
     out = subprocess.run(["tasklist", "/FI", "IMAGENAME eq ms-teams.exe", "/FO", "CSV", "/NH"],
-                         capture_output=True, text=True).stdout
+                         capture_output=True, text=True, errors="replace").stdout  # OEM code page output
     return "ms-teams.exe" in out.lower()
 
 

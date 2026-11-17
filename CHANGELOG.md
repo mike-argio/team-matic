@@ -10,5 +10,7 @@ First public release. Experimental.
   duplicate protection, stop on uncertain delivery, `reconcile`, `abandon`, `--draft-only`.
 - Markdown formatting, titles and tables checked in the draft before the Send click; mail merge templates.
 - Account check before sending; the client's temporary local id is never accepted as proof of delivery.
-- `doctor`, `cdp open` / `cdp close`, agent skill installer.
+- Owner switches in the policy: `agent_may_send` (an agent may run plans itself) and `allow_navigation`.
+- A recipient that Teams refuses (`COMPOSE_BLOCKED_BY_TEAMS`) stays `pending`; the rest of the batch continues.
+- `doctor`, `cdp open` / `cdp close`, agent skill installer, `npx github:mike-argio/team-matic`.
 - Verified live on one personal account, Windows 11, Polish UI.

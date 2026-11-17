@@ -54,7 +54,7 @@ def verify_port_ownership() -> None:
       }
       exit 2''' % cdp_port()
     result = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
-                            capture_output=True, text=True, timeout=20)
+                            capture_output=True, text=True, errors="replace", timeout=20)
     if result.returncode != 0 or "OWNED_BY_TEAMS" not in result.stdout:
         raise RuntimeError(f"Debug port {cdp_port()} is closed or not owned by Teams. "
                            "Run `python teammatic.py cdp open` first, or add --offline to read a copy saved by `sync`.")

@@ -182,6 +182,7 @@ Common stop reasons:
 | --- | --- |
 | `SELECT_CHAT_MANUALLY_OR_ALLOW_NAVIGATION` | Wrong chat selected; navigation is disabled |
 | `NONEMPTY_DRAFT_OR_UNSUPPORTED_COMPOSER` | Existing draft or unsupported editor; no overwriting |
+| `COMPOSE_BLOCKED_BY_TEAMS` | Teams refuses this recipient (for example until they reply). The job stays `pending`, the batch continues. Do not work around it |
 | `TARGET_NOT_LOADED_OR_AMBIGUOUS` | Chat not loaded into visible list |
 | `DRAFT_MISMATCH_LEAVE_FOR_INSPECTION` | Composed text differs from approved text |
 | `FORMAT_NOT_APPLIED_LEAVE_FOR_INSPECTION` | Required rich-text format was dropped |

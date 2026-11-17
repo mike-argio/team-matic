@@ -118,6 +118,9 @@ The same content is never sent twice to one chat. For an intended repeat (a week
 
 - `pending` with an `error`: the tool stopped before clicking Send; nothing was delivered. Fix the cause
   (for example an existing draft in that chat) and call `run` again.
+- `pending` with `COMPOSE_BLOCKED_BY_TEAMS`: Teams itself refuses that recipient (for example "wait until they
+  reply"). The rest of the batch still runs and the result has `complete: false`. Tell the user; do not retry
+  in a loop and do not work around it.
 - `uncertain` or `attempting`: stop. Read the chat (port open), then either
   `reconcile --job <id> --message-id <id>` when the message is there, or tell the user. Only the user decides
   `abandon --job <id>` after checking Teams by hand.

@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parent
 POLICY_KEYS = {"enabled", "allowed_chat_ids", "own_creator", "min_interval_seconds", "max_batch_size"}
 # Owner switches: agent_may_send lets an agent approve its own plans; allow_navigation lets runs switch chats.
 OPTIONAL_KEYS = {"daily_limit", "agent_may_send", "allow_navigation"}
+RECIPIENT_BLOCKED = "COMPOSE_BLOCKED_BY_TEAMS"
 MESSAGE_KEYS = {"chat_id", "text", "title", "table", "table_header", "format", "occurrence"}
 
 
@@ -318,13 +319,17 @@ class Outbox:
                     with self.db:
                         self.db.execute("UPDATE jobs SET state='pending',error=? WHERE id=?",
                                         (str(exc)[:1000], job["id"]))
-                    raise
+                    if RECIPIENT_BLOCKED not in str(exc):
+                        raise
+                    # Teams refuses only this recipient: skip it, keep it pending, go on with the others.
+                    results.append({"job": job["id"], "state": "pending", "error": str(exc)[:1000]})
                 except BaseException as exc:
                     with self.db:
                         self.db.execute("UPDATE jobs SET state='uncertain',error=? WHERE id=?",
                                         (str(exc)[:1000], job["id"]))
                     raise
-            return {"ok": True, "batch": batch, "results": results}
+            return {"ok": True, "batch": batch, "complete": all(r["state"] != "pending" for r in results),
+                    "results": results}
 
 
 def live_backend(payload):

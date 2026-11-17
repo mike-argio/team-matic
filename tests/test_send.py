@@ -256,6 +256,24 @@ class OutboxTests(unittest.TestCase):
         self.box.run(view["batch"], view["confirm"], self.policy, self.success, clock=lambda: 10**10)
         self.assertEqual(self.box.show(view["batch"])["jobs"][0]["state"], "sent")
 
+    def test_recipient_blocked_by_teams_is_skipped_and_batch_continues(self):
+        view = self.plan([{"chat_id": "chat-a", "text": "One"}, {"chat_id": "chat-b", "text": "Two"}])
+        calls = []
+
+        def backend(payload):
+            calls.append(payload["chat_id"])
+            if payload["chat_id"] == "chat-a":
+                raise NotSent("COMPOSE_BLOCKED_BY_TEAMS")
+            return self.success(payload)
+
+        out = self.box.run(view["batch"], view["confirm"], self.policy, backend, clock=lambda: 10**10,
+                           sleep=lambda _: None)
+        self.assertEqual(calls, ["chat-a", "chat-b"])
+        self.assertFalse(out["complete"])
+        jobs = self.box.show(view["batch"])["jobs"]
+        self.assertEqual([(j["state"], j["error"]) for j in jobs],
+                         [("pending", "COMPOSE_BLOCKED_BY_TEAMS"), ("sent", None)])
+
     def test_abandon_releases_queue_only_for_unresolved_jobs(self):
         view = self.plan()
         job = view["jobs"][0]["id"]
