@@ -1,0 +1,23 @@
+{
+  "name": "team-matic",
+  "version": "0.1.0",
+  "description": "Local Microsoft Teams desktop automation: read chats, send owner-approved messages. No Graph, no Azure.",
+  "license": "MIT",
+  "type": "module",
+  "bin": { "team-matic": "bin/team-matic.mjs" },
+  "engines": { "node": ">=22" },
+  "os": ["win32"],
+  "files": [
+    "bin/",
+    "scripts/",
+    "skills/",
+    "examples/",
+    "teammatic.py",
+    "teammatic_format.py",
+    "teams_bridge.py",
+    "teams_send.py",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": { "type": "git", "url": "git+https://github.com/mike-argio/team-matic.git" }
+}
