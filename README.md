@@ -58,6 +58,15 @@ python teammatic.py incoming --limit 10
 python teammatic.py cdp close      # Close the port and restart Teams normally
 ```
 
+**Or run it without cloning,** through npx (Node.js comes with it):
+
+```powershell
+npx github:mike-argio/team-matic doctor
+npx github:mike-argio/team-matic list
+```
+
+With npx, private state (policy, outbox, cursors) lives in `%LOCALAPPDATA%\team-matic`, because the npx folder is a cache. Set `TEAMMATIC_DATA` to choose another folder. For the agent skill (`install-skill`), use a cloned copy: the skill must point at a folder that does not move.
+
 > [!WARNING]
 > **`cdp open` restarts Teams and exposes a powerful, unauthenticated local debug port.** Other programs running under your Windows account may control the Teams session while it is open. Only open it deliberately, on a trusted computer, and close it afterwards. Reads are live by default, so they need the port; to read with the port closed, save an offline copy with `sync` first and add `--offline`.
 
