@@ -46,7 +46,8 @@ sends is fail-closed: if the composed draft does not contain the approved text a
 - 2026-11-17: serial send, requested by the owner: one mail merge template to three separate 1:1 chats (own
   notes, a colleague, the owner's second account), policy with `agent_may_send` and `allow_navigation`, run by
   the agent. Two messages sent and found in history with server ids; the chat count stayed at 21, so no group
-  was created. Teams refused the third chat ("wait until the user replies"), an external-contact restriction.
+  was created. Teams refused the third chat ("wait until the user replies"); that account turned out to be
+  inactive, and the job was cancelled.
   Found and fixed: that refusal surfaced as a generic `UNSAFE_TARGET_OR_DRAFT` and stopped the whole batch; it is
   now `COMPOSE_BLOCKED_BY_TEAMS`, the job stays `pending` and the batch continues. A blocked or drafted chat that
   happened to be selected also stopped sends to other chats; only the destination composer is checked now.
