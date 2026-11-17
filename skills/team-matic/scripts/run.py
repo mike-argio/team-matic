@@ -10,14 +10,14 @@ COMMANDS = ("doctor", "cdp", "init", "sync", "list", "stats", "incoming", "read"
 
 
 def engine_root():
-    """Engine location: explicit variable, the repository this skill sits in, or the install pointer."""
+    """Engine location: explicit variable, install pointer, or enclosing repository/plugin."""
     if os.environ.get("TEAMMATIC_ROOT"):
         return Path(os.environ["TEAMMATIC_ROOT"]).expanduser().resolve()
-    if (HERE.parents[3] / "teammatic.py").is_file():
-        return HERE.parents[3]
     pointer = HERE.parents[1] / "engine_root.txt"
     if pointer.is_file():
         return Path(pointer.read_text(encoding="utf-8").strip()).resolve()
+    if (HERE.parents[3] / "teammatic.py").is_file():
+        return HERE.parents[3]
     return None
 
 
@@ -32,7 +32,11 @@ def main(argv=None):
               "or reinstall with: python teammatic.py install-skill --target <skills dir> --update", file=sys.stderr)
         return 2
     # Reuse the engine. No duplicated logic and no resident process.
-    return subprocess.run([sys.executable, str(root / "teammatic.py"), *argv]).returncode
+    env = os.environ.copy()
+    if (HERE.parents[1] / "engine_root.txt").exists() or not (root / ".git").exists():
+        local = Path(env.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
+        env.setdefault("TEAMMATIC_DATA", str(local / "team-matic"))
+    return subprocess.run([sys.executable, str(root / "teammatic.py"), *argv], env=env).returncode
 
 
 if __name__ == "__main__":

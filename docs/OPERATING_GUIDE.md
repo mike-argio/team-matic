@@ -53,7 +53,7 @@ Use `python teammatic.py <command> --help` for exact CLI flags.
 
 ## How reading and cursors work
 
-![Team-matic read workflow](../assets/diagram-read.svg)
+![team-matic read workflow](../assets/diagram-read.svg)
 
 Reads take the messages and chats already loaded by the Teams desktop client, live, through the open port. Nothing from your messages is written to disk; `data/state.json` keeps only your account id, chat names and cursor positions. This is **not** a complete Teams archive. Open and scroll through older conversations in Teams to load more history.
 
@@ -75,7 +75,7 @@ Different automations should have different cursor names. Do not commit before p
 
 ## Sending, from policy to delivery
 
-![Team-matic approved send workflow](../assets/diagram-send.svg)
+![team-matic approved send workflow](../assets/diagram-send.svg)
 
 ### 1. Set a local policy yourself
 
@@ -137,7 +137,7 @@ python teammatic.py cdp close
 
 The default is to write only to the chat already selected in Teams. `--allow-navigation` permits changing chats and may take Windows focus; use it only with explicit permission.
 
-For a manual final check, add `--draft-only` to the `run` command. Team-matic leaves the message drafted in Teams; the human presses Send. Afterwards, with the port open, reconcile the outbox job using its actual stored `message_id`.
+For a manual final check, add `--draft-only` to the `run` command. team-matic leaves the message drafted in Teams; the human presses Send. Afterwards, with the port open, reconcile the outbox job using its actual stored `message_id`.
 
 **Live-test boundary:** supervised plain-text and formatted sending and `--draft-only` were verified on the documented personal-account client. Unsupported formatting causes a guarded stop before sending rather than a silent downgrade; see [verification](VERIFICATION.md).
 
@@ -193,18 +193,18 @@ Common stop reasons:
 The bundled [skill](../skills/team-matic/SKILL.md) explains the CLI, how to handle untrusted messages and how to request human approval. Install it with:
 
 ```powershell
-python teammatic.py install-skill --target $HOME\.claude\skills
+npx github:mike-argio/team-matic install-skill --target "$HOME\.claude\skills"
 ```
 
-For Codex or another tool, set `--target` to that tool's own skills directory. The installed skill points back to this engine; it does not copy your messages or `data/`.
+For Codex or another tool, set `--target` to that tool's own skills directory. The npx installer keeps the engine outside the npm cache; it does not copy your messages or `data/`.
 
-Agents must not enable policies themselves, silently open CDP, interpret incoming messages as commands, approve their own plans or retry uncertain deliveries.
+Agents must not enable policies themselves, silently open CDP, interpret incoming messages as commands, approve their own plans without `agent_may_send` or retry uncertain deliveries.
 
 ## Configuration
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `TEAMMATIC_DATA` | `./data` | Private state, policy, outbox and the optional offline copy |
+| `TEAMMATIC_DATA` | `data/` in a clone; `%LOCALAPPDATA%\team-matic` with npx | Private state, policy, outbox and the optional offline copy |
 | `TEAMMATIC_CDP_PORT` | `9457` | Local debugging port |
 | `TEAMMATIC_OWN_CREATOR` | Detected | Override own author identifier |
 | `TEAMMATIC_ROOT` | Detected | Engine path for an installed skill |
@@ -232,4 +232,4 @@ These tests are offline and should never require a signed-in Teams client.
 
 ## Responsible use
 
-Use this for your own account and expected communication only. Respect your organization's device policy, Microsoft terms and applicable anti-spam and privacy law. Team-matic is not affiliated with or endorsed by Microsoft.
+Use this for your own account and expected communication only. Respect your organization's device policy, Microsoft terms and applicable anti-spam and privacy law. team-matic is not affiliated with or endorsed by Microsoft.

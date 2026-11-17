@@ -109,13 +109,22 @@ class SkillTests(unittest.TestCase):
                 child.assert_not_called()
 
     def test_installed_copy_finds_engine_through_pointer(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            out = teammatic.install_skill(tmp, update=False)
+        with tempfile.TemporaryDirectory() as tmp, patch.dict("os.environ", {"LOCALAPPDATA": tmp}):
+            target = str(Path(tmp) / "skills")
+            out = teammatic.install_skill(target, update=False)
             copied = Path(out["skill"])
             self.assertEqual(sorted(p.name for p in copied.rglob("*") if p.is_file()),
                              ["SKILL.md", "engine_root.txt", "run.py"])
             with self.assertRaises(RuntimeError):
-                teammatic.install_skill(tmp, update=False)
+                teammatic.install_skill(target, update=False)
+            engine = Path(out["engine"])
+            self.assertEqual(engine, Path(tmp) / "team-matic" / "engine")
+            policy = engine.parent / "send-policy.json"
+            policy.write_bytes(b"preserve owner settings")
+            (engine / "teams_send.py").write_bytes(b"stale runtime")
+            teammatic.install_skill(target, update=True)
+            self.assertEqual((engine / "teams_send.py").read_bytes(), (ROOT / "teams_send.py").read_bytes())
+            self.assertEqual(policy.read_bytes(), b"preserve owner settings")
             result = subprocess.run([sys.executable, str(copied / "scripts" / "run.py"), "plan", "--help"],
                                     capture_output=True, text=True, timeout=20, cwd=tmp)
             self.assertEqual(result.returncode, 0, result.stderr)

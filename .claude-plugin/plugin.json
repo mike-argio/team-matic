@@ -1,0 +1,7 @@
+{
+  "name": "team-matic",
+  "version": "0.1.0",
+  "author": { "name": "mike-argio" },
+  "description": "Read Teams chats and send owner-approved messages through the local Windows client.",
+  "license": "MIT"
+}

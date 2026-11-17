@@ -1,11 +1,11 @@
-<h1 align="center">TEAM-MATIC</h1>
+<h1 align="center">team-matic</h1>
 
 <p align="center">
   <strong>Your Teams chats. Your scripts. Your AI agents. You stay in control.</strong>
 </p>
 
 <p align="center">
-  <img src="assets/team-matic-hero.webp" alt="TEAM-MATIC retro banner: a woman and a puzzled robot sorting envelopes next to the T-M mark" width="100%">
+  <img src="assets/team-matic-hero.webp" alt="team-matic retro banner: a woman and a puzzled robot sorting envelopes beside the team-matic wordmark" width="100%">
 </p>
 
 <p align="center">
@@ -34,51 +34,38 @@
 
 ---
 
-## One local bridge. Three useful superpowers.
-
-| READ | SEND | AUTOMATE |
-| :--- | :--- | :--- |
-| Read your Teams chats **live** from the desktop app and pick up new incoming messages. Named cursors let each consumer track its own progress. | Prepare **plain or formatted** messages, preview recipients and text, then send only after a human approves the exact batch. | Run a **JSON-in / JSON-out** CLI from Python scripts, Task Scheduler or AI coding agents. A ready-to-install skill is included. |
-| `list` · `incoming` · `read` | `plan` · `run` · `reconcile` | [Agent skill](skills/team-matic/SKILL.md) · [Examples](examples/) |
-
-**Made for your own signed-in desktop session**, not for scraping Microsoft servers or sending unsolicited messages. Every command runs once and exits. Nothing is installed as a daemon.
-
 ## Quick start
 
 **You'll need:** Windows 10/11, the **new Microsoft Teams desktop client** (signed in), Python 3.10+ and Node.js 22+. No third-party packages are required.
 
-```powershell
-git clone https://github.com/mike-argio/team-matic.git
-cd team-matic
-
-python teammatic.py doctor         # Check your setup and required software
-python teammatic.py cdp open       # Restart Teams with a temporary local debug port
-python teammatic.py list           # See chat IDs, read live from Teams
-python teammatic.py incoming --limit 10
-python teammatic.py cdp close      # Close the port and restart Teams normally
-```
-
-**Or run it without cloning,** through npx (Node.js comes with it):
+Check your setup without restarting Teams (Git is required for this GitHub npx package):
 
 ```powershell
 npx github:mike-argio/team-matic doctor
-npx github:mike-argio/team-matic list
 ```
 
-With npx, private state (policy, outbox, cursors) lives in `%LOCALAPPDATA%\team-matic`, because the npx folder is a cache. Set `TEAMMATIC_DATA` to choose another folder. For the agent skill (`install-skill`), use a cloned copy: the skill must point at a folder that does not move.
+For Claude Code or another agent, see [agent installation](#built-for-agents-bounded-by-humans). Every command runs once and exits; there is no background service.
 
 > [!WARNING]
 > **`cdp open` restarts Teams and exposes a powerful, unauthenticated local debug port.** Other programs running under your Windows account may control the Teams session while it is open. Only open it deliberately, on a trusted computer, and close it afterwards. Reads are live by default, so they need the port; to read with the port closed, save an offline copy with `sync` first and add `--offline`.
 
-Team-matic sees only the chats and messages the client has **loaded**, not your full Teams history. Open or scroll older conversations in Teams to load more.
+When you are ready to restart Teams for a live read:
+
+```powershell
+npx github:mike-argio/team-matic cdp open
+npx github:mike-argio/team-matic list
+npx github:mike-argio/team-matic cdp close
+```
+
+team-matic sees only the chats and messages the client has **loaded**, not your full Teams history. Open or scroll older conversations in Teams to load more.
 
 ## How it works
 
 ![Architecture showing scripts and AI agents connecting through team-matic to the signed-in Teams desktop client, with an optional offline copy](assets/diagram-architecture.svg)
 
-**Reading** takes the messages the Teams client has loaded, live, and returns JSON. No message copy is written to disk unless you run `sync`. Only a small `state.json` (your account id, chat names, cursor positions) and the send log stay in `data/`. **Sending** operates the actual Teams message composer through the desktop client's local debug interface, checking the recipient, draft and stored message. Team-matic never calls Microsoft Graph or extracts authentication cookies or tokens.
+**Reading** takes the messages the Teams client has loaded, live, and returns JSON. No message copy is written to disk unless you run `sync`. **Sending** operates the actual Teams message composer through the desktop client's local debug interface, checking the recipient, draft and stored message. team-matic never calls Microsoft Graph or extracts authentication cookies or tokens.
 
-The local connection needs to be open for live reads, `sync` and `run`. Close it when you are done. Everything team-matic keeps lives under git-ignored `data/`.
+The local connection needs to be open for live reads, `sync` and `run`. Close it when you are done. With npx, private state lives in `%LOCALAPPDATA%\team-matic`. The remaining Python examples assume a repository clone, where the default is `data/`. Set `TEAMMATIC_DATA` to use a different state directory.
 
 ## Read messages
 
@@ -116,7 +103,7 @@ Every result says where it came from (`source`: `live` or `offline`) and, for th
 
 ![Human-approved send workflow: allowlisted policy, exact plan, user confirmation and verified delivery](assets/diagram-send.svg)
 
-Team-matic separates **preparing a message** from **sending it**. A script or agent can prepare the draft, but it cannot grant itself permission. It approves its own plans only if you switch that on in the policy.
+team-matic separates **preparing a message** from **sending it**. A script or agent can prepare the draft, but it cannot grant itself permission. It approves its own plans only if you switch that on in the policy.
 
 **1. Configure your allowlist.** You, not an agent, enable sending and set the allowed `chat_id` values and limits.
 
@@ -172,18 +159,25 @@ Also supported in the documented format: Markdown-style bold, italic, headings, 
 
 ## Built for agents, bounded by humans
 
-The included [agent skill](skills/team-matic/SKILL.md) works with command-line-capable agents such as Claude Code, Codex and OpenCode. Install it, for example, into Claude Code's skills directory:
+**Claude Code plugin.** Run these commands inside Claude Code:
 
-```powershell
-python teammatic.py install-skill --target $HOME\.claude\skills
+```text
+/plugin marketplace add mike-argio/team-matic
+/plugin install team-matic@team-matic
 ```
 
-The installed skill points back to this project; messages stay local. Incoming Teams text is marked as **untrusted content**, and the skill instructs agents not to follow instructions embedded in chat messages.
+**Standalone skill.** If you prefer a user skill, run this in PowerShell instead:
+
+```powershell
+npx github:mike-argio/team-matic install-skill --target "$HOME\.claude\skills"
+```
+
+This installs the engine in `%LOCALAPPDATA%\team-matic\engine`, outside the disposable npm cache. For another compatible agent, pass its skills directory as `--target`. Neither installation grants send permission. The [skill](skills/team-matic/SKILL.md) treats incoming chat text as untrusted content, not instructions.
 
 | Risk | Guardrail |
 | :--- | :--- |
 | An AI agent chooses the wrong recipient | Exact `chat_id` allowlist plus full-batch preview |
-| A prompt injection asks the agent to send | Incoming content is untrusted; sending still needs policy and human approval |
+| A prompt injection asks the agent to send | Incoming content is untrusted; sending still requires an owner-configured policy |
 | A message is sent twice | Duplicate protection and a stop on uncertain delivery |
 | An agent floods chats | Minimum interval, batch cap and optional rolling daily limit |
 | Teams changes its interface | `doctor` and fail-closed checks; unsupported states stop the send |
@@ -192,8 +186,8 @@ The installed skill points back to this project; messages stay local. Incoming T
 
 - `cdp open` restarts Teams with a debug port on `127.0.0.1:9457`. It has **no authentication**: while it is open, any program running under your Windows account can control your Teams session. Other machines cannot reach it.
 - The exposure lasts from `cdp open` to `cdp close`. `python teammatic.py cdp status` tells you whether it is open. Quitting Teams from the tray and starting it normally also closes it.
-- Team-matic itself only runs fixed read and send functions through the port. It does not extract tokens or call Microsoft servers.
-- Sending needs three things an agent cannot give itself: an owner-edited allowlist, an exact plan and a human approval of its SHA256.
+- team-matic itself only runs fixed read and send functions through the port. It does not extract tokens or call Microsoft servers.
+- Sending requires an owner-edited policy and a matching batch digest. Unless the owner enables `agent_may_send`, the owner must approve that exact batch.
 
 Report vulnerabilities privately: [SECURITY.md](SECURITY.md).
 
@@ -232,7 +226,7 @@ No. The cache reflects what the Teams client has loaded. The `stats` and read re
 
 **Can an agent use it while I work?**
 
-Cached reading does not need Teams focus. Sending into the composer can affect the active window, particularly with `--allow-navigation`. It is intentionally not a stealth or unattended messaging service.
+Live reads do not navigate chats or take focus. Sending into the composer can affect the active window, particularly with `--allow-navigation`. It is intentionally not a stealth or unattended messaging service.
 
 **Is work/school Teams supported?**
 
@@ -259,6 +253,6 @@ Help is welcome, and the most useful kind needs no code: **tell us whether team-
 
 MIT licensed. See [LICENSE](LICENSE). Use only with your own account, expected recipients and the applicable Microsoft, organization, privacy and anti-spam rules.
 
-**TEAM-MATIC is not affiliated with or endorsed by Microsoft.** Microsoft Teams is a trademark of Microsoft Corporation.
+**team-matic is not affiliated with or endorsed by Microsoft.** Microsoft Teams is a trademark of Microsoft Corporation.
 
 <p align="center">Built by <a href="https://argio.ai">ARG·IO.</a></p>

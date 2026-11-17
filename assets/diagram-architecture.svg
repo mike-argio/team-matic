@@ -1,65 +1,30 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" width="1200" height="600" role="img" aria-labelledby="title desc">
-  <title id="title">How team-matic works</title>
-  <desc id="desc">A script or AI agent calls team-matic with JSON. Team-matic uses a local debug connection to the signed-in Teams desktop client when explicitly enabled. Reads come live from the running client, and no message copy is kept unless you run sync for offline reading. There is no Graph API or hosted relay.</desc>
-  <defs>
-    <pattern id="dots" width="13" height="13" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.5" fill="#DFA85A" opacity=".42"/></pattern>
-    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#D45E37" stroke-width="1.9" stroke-linejoin="round"/></marker>
-    <marker id="arrow-back" markerWidth="10" markerHeight="10" refX="2" refY="5" orient="auto"><path d="M9 1 L1 5 L9 9" fill="none" stroke="#D45E37" stroke-width="1.9" stroke-linejoin="round"/></marker>
-  </defs>
-  <rect x="2" y="2" width="1196" height="596" rx="27" fill="#F8EED7" stroke="#17424B" stroke-width="4"/>
-  <rect x="3" y="3" width="1194" height="17" rx="8" fill="#17424B"/>
-  <path d="M28 22 H1172" stroke="#DFA85A" stroke-width="3"/>
-  <rect x="925" y="37" width="235" height="88" rx="12" fill="url(#dots)"/>
-  <text x="45" y="68" font-family="Arial,Segoe UI,sans-serif" font-size="15" font-weight="700" letter-spacing="3" fill="#C95D36">UNDER THE HOOD / 01</text>
-  <text x="45" y="113" font-family="Arial,Segoe UI,sans-serif" font-size="39" font-weight="900" fill="#173E48">Your desktop. Your Teams. Your automation.</text>
-  <text x="45" y="144" font-family="Arial,Segoe UI,sans-serif" font-size="20" fill="#435B5B">One command-line bridge, without a bot or a cloud relay.</text>
-  <!-- CONNECTORS BEHIND CARDS -->
-  <path d="M375 300 H426" stroke="#D45E37" stroke-width="4" stroke-linecap="round" marker-start="url(#arrow-back)" marker-end="url(#arrow)"/>
-  <path d="M767 300 H817" stroke="#D45E37" stroke-width="4" stroke-linecap="round" marker-start="url(#arrow-back)" marker-end="url(#arrow)"/>
-  <text x="402" y="277" text-anchor="middle" font-family="Arial,Segoe UI,sans-serif" font-size="12" font-weight="700" fill="#17424B">JSON</text>
-  <text x="792" y="273" text-anchor="middle" font-family="Arial,Segoe UI,sans-serif" font-size="12" font-weight="700" fill="#17424B">LOCAL</text>
-  <!-- LEFT CARD -->
-  <rect x="49" y="170" width="326" height="284" rx="19" fill="#173E48" opacity=".16"/>
-  <rect x="43" y="164" width="326" height="284" rx="19" fill="#FFFAEC" stroke="#17424B" stroke-width="3"/>
-  <path d="M62 164 H350 Q369 164 369 183 V222 H43 V183 Q43 164 62 164" fill="#17424B"/>
-  <circle cx="71" cy="194" r="7" fill="#E7A354"/><circle cx="94" cy="194" r="7" fill="#D96843"/><circle cx="117" cy="194" r="7" fill="#72A6A3"/>
-  <text x="142" y="202" font-family="Arial,Segoe UI,sans-serif" font-size="21" font-weight="800" fill="#FFF6DF">YOUR WORKFLOW</text>
-  <rect x="65" y="248" width="282" height="92" rx="12" fill="#193E48"/>
-  <text x="84" y="277" font-family="Consolas,monospace" font-size="16" font-weight="700" fill="#E9B66B">$ python teammatic.py</text>
-  <text x="84" y="306" font-family="Consolas,monospace" font-size="16" fill="#B0DCDA">  incoming --cursor</text>
-  <text x="84" y="330" font-family="Consolas,monospace" font-size="16" fill="#B0DCDA">  my-agent</text>
-  <text x="72" y="378" font-family="Arial,Segoe UI,sans-serif" font-size="22" font-weight="800" fill="#17424B">Scripts + AI agents</text>
-  <text x="72" y="410" font-family="Arial,Segoe UI,sans-serif" font-size="17" fill="#4C6564">Claude Code / Codex / any CLI</text>
-  <!-- MIDDLE CARD -->
-  <rect x="446" y="170" width="322" height="284" rx="19" fill="#173E48" opacity=".16"/>
-  <rect x="440" y="164" width="322" height="284" rx="19" fill="#FFFAEC" stroke="#17424B" stroke-width="3"/>
-  <path d="M459 164 H743 Q762 164 762 183 V222 H440 V183 Q440 164 459 164" fill="#D65E37"/>
-  <text x="601" y="201" text-anchor="middle" font-family="Arial,Segoe UI,sans-serif" font-size="25" font-weight="900" letter-spacing="1.5" fill="#FFF6DF">TEAM-MATIC</text>
-  <circle cx="600" cy="290" r="48" fill="#F1C88B" stroke="#17424B" stroke-width="4"/>
-  <path d="M581 286 L593 298 L621 272" fill="none" stroke="#17424B" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="600" y="372" text-anchor="middle" font-family="Arial,Segoe UI,sans-serif" font-size="22" font-weight="800" fill="#17424B">Read / plan / send</text>
-  <text x="600" y="402" text-anchor="middle" font-family="Arial,Segoe UI,sans-serif" font-size="17" fill="#4C6564">Guardrails before every send</text>
-  <!-- RIGHT CARD -->
-  <rect x="837" y="170" width="322" height="284" rx="19" fill="#173E48" opacity=".16"/>
-  <rect x="831" y="164" width="322" height="284" rx="19" fill="#FFFAEC" stroke="#17424B" stroke-width="3"/>
-  <path d="M850 164 H1134 Q1153 164 1153 183 V222 H831 V183 Q831 164 850 164" fill="#17424B"/>
-  <text x="991" y="201" text-anchor="middle" font-family="Arial,Segoe UI,sans-serif" font-size="22" font-weight="800" fill="#FFF6DF">TEAMS DESKTOP</text>
-  <rect x="863" y="245" width="257" height="149" rx="10" fill="#E9E4E8" stroke="#17424B" stroke-width="2"/>
-  <rect x="863" y="245" width="75" height="149" rx="9" fill="#D0D5DF"/>
-  <circle cx="886" cy="271" r="10" fill="#8667A7"/><rect x="903" y="264" width="26" height="6" rx="3" fill="#798392"/>
-  <circle cx="886" cy="302" r="10" fill="#91A6BC"/><rect x="903" y="297" width="26" height="6" rx="3" fill="#798392"/>
-  <circle cx="886" cy="333" r="10" fill="#91A6BC"/><rect x="903" y="327" width="26" height="6" rx="3" fill="#798392"/>
-  <rect x="959" y="266" width="132" height="31" rx="11" fill="#D1C5E0"/>
-  <rect x="981" y="313" width="122" height="30" rx="11" fill="#A49ACB"/>
-  <rect x="959" y="360" width="143" height="20" rx="7" fill="#FAF8FC" stroke="#BDC6CA"/>
-  <text x="991" y="424" text-anchor="middle" font-family="Arial,Segoe UI,sans-serif" font-size="16" fill="#4C6564">Signed-in Windows client</text>
-  <!-- LOCAL CACHE -->
-  <path d="M600 448 V479" stroke="#D45E37" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)"/>
-  <rect x="387" y="489" width="426" height="63" rx="15" fill="#17424B"/>
-  <ellipse cx="425" cy="508" rx="17" ry="7" fill="#F6CB91"/>
-  <path d="M408 508 V528 C408 538 442 538 442 528 V508" fill="#E9AC66" stroke="#F6CB91" stroke-width="2"/>
-  <ellipse cx="425" cy="528" rx="17" ry="7" fill="#E9AC66" stroke="#F6CB91" stroke-width="2"/>
-  <text x="458" y="515" font-family="Arial,Segoe UI,sans-serif" font-size="20" font-weight="800" fill="#FFF8E7">Optional offline copy</text>
-  <text x="458" y="539" font-family="Arial,Segoe UI,sans-serif" font-size="16" fill="#BDDCD9">Only if you run sync; read it with --offline</text>
-  <text x="600" y="582" text-anchor="middle" font-family="Arial,Segoe UI,sans-serif" font-size="16" font-weight="700" fill="#17424B">NO MICROSOFT GRAPH API    /    NO AZURE APP    /    NO HOSTED RELAY</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="322" viewBox="0 0 1000 322" role="img" aria-labelledby="title desc">
+  <title id="title">team-matic: One bridge to the signed-in client</title>
+  <desc id="desc">Script or AI agent: Choose a command. Use IDs, not chat names. team-matic CLI: Run locally on Windows. Return structured JSON. Teams desktop: Connect via local CDP with owner permission. Only chats and messages already loaded in the client are visible. No Graph API, Azure app registration or hosted relay.</desc>
+  <rect width="1000" height="322" rx="16" fill="#11333b"/>
+  <g font-family="Segoe UI, Arial, sans-serif">
+    <text x="26" y="32" font-size="16" font-weight="700" fill="#9ce2d5">team-matic   /   01   /   ARCHITECTURE</text>
+    <text x="26" y="76" font-size="34" font-weight="700" fill="#fff9e9">One bridge to the signed-in client</text>
+    <rect x="26" y="98" width="300" height="132" rx="12" fill="#f8f5e9"/>
+    <text x="42" y="125" font-size="15" font-weight="700" fill="#326760">CALLER</text>
+    <text x="42" y="159" font-size="25" font-weight="700" fill="#11333b">Script or AI agent</text>
+    <text x="42" y="189" font-size="17" font-weight="400" fill="#334f54">Choose a command.</text>
+    <text x="42" y="212" font-size="17" font-weight="400" fill="#334f54">Use IDs, not chat names.</text>
+    <path d="M328 164h18m-6 -6 6 6-6 6" fill="none" stroke="#9ce2d5" stroke-width="2"/>
+    <rect x="350" y="98" width="300" height="132" rx="12" fill="#f8f5e9"/>
+    <text x="366" y="125" font-size="15" font-weight="700" fill="#326760">INTERFACE</text>
+    <text x="366" y="159" font-size="25" font-weight="700" fill="#11333b">team-matic CLI</text>
+    <text x="366" y="189" font-size="17" font-weight="400" fill="#334f54">Run locally on Windows.</text>
+    <text x="366" y="212" font-size="17" font-weight="400" fill="#334f54">Return structured JSON.</text>
+    <path d="M652 164h18m-6 -6 6 6-6 6" fill="none" stroke="#9ce2d5" stroke-width="2"/>
+    <rect x="674" y="98" width="300" height="132" rx="12" fill="#f8f5e9"/>
+    <text x="690" y="125" font-size="15" font-weight="700" fill="#326760">CONNECTION</text>
+    <text x="690" y="159" font-size="25" font-weight="700" fill="#11333b">Teams desktop</text>
+    <text x="690" y="189" font-size="17" font-weight="400" fill="#334f54">Connect via local CDP</text>
+    <text x="690" y="212" font-size="17" font-weight="400" fill="#334f54">with owner permission.</text>
+    <text x="26" y="264" font-size="17" font-weight="700" fill="#9ce2d5">Read scope</text>
+    <text x="158" y="264" font-size="17" font-weight="400" fill="#fff9e9">Only chats and messages already loaded in the client are visible.</text>
+    <text x="26" y="298" font-size="17" font-weight="700" fill="#9ce2d5">Local only</text>
+    <text x="158" y="298" font-size="17" font-weight="400" fill="#fff9e9">No Graph API, Azure app registration or hosted relay.</text>
+  </g>
 </svg>

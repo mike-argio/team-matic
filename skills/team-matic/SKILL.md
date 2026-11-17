@@ -10,7 +10,9 @@ Do not start a watcher, a scheduled task, a service or a polling loop unless the
 
 ## Entry point
 
-`scripts/run.py` next to this file forwards to the engine. `$tm` below is its absolute path.
+Set `$tm` to the absolute path of `scripts/run.py` beside this skill file. In the Claude Code plugin use
+`$tm = "${CLAUDE_PLUGIN_ROOT}/skills/team-matic/scripts/run.py"`. A standalone installation uses the
+same runner in the selected skills directory.
 
 ```powershell
 python $tm doctor

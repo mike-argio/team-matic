@@ -1,0 +1,6 @@
+{
+  "name": "team-matic",
+  "owner": { "name": "mike-argio" },
+  "metadata": { "description": "Local Teams desktop tools for Claude Code." },
+  "plugins": [{ "name": "team-matic", "source": "./" }]
+}

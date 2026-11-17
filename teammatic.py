@@ -14,6 +14,7 @@ import socket
 import sqlite3
 import subprocess
 import sys
+import tempfile
 import time
 
 import teams_bridge as bridge
@@ -28,7 +29,7 @@ SKILL = ROOT / "skills" / "team-matic"
 
 USAGE = """team-matic: automate your own Microsoft Teams chats
 
-  Setup      doctor | cdp status|open|close | init | install-skill --target DIR
+  Setup      doctor | cdp status|open|close | init | install-skill [--target DIR]
   Read       list | incoming | read --chat ID | stats | whoami   (live; add --offline for a saved copy)
              sync   saves an offline copy (optional)
   Send       plan | show | run | cancel | reconcile | abandon
@@ -183,15 +184,32 @@ def init() -> dict:
 
 
 def install_skill(target: str, update: bool) -> dict:
-    """Copy the agent skill into a skills directory and point it back at this engine."""
+    """Copy only the runtime and skill, never private state, to persistent locations."""
     destination = Path(target).expanduser().resolve() / "team-matic"
     if destination.exists() and not update:
         raise RuntimeError(f"{destination} already exists. Inspect it, then pass --update to replace the skill files.")
+    local = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
+    engine = (local / "team-matic" / "engine").resolve()
+    runtime = ("teammatic.py", "teammatic_format.py", "teams_bridge.py", "teams_send.py",
+               "scripts/cdp-client.mjs", "scripts/collect-cache.mjs", "scripts/probe.mjs",
+               "scripts/send-message.mjs", "scripts/focus-monitor.py", "skills/team-matic/SKILL.md",
+               "skills/team-matic/scripts/run.py")
+    if engine != ROOT:
+        engine.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=engine) as staging:
+            for name in runtime:
+                staged = Path(staging) / name
+                staged.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(ROOT / name, staged)
+            for name in runtime:
+                final = engine / name
+                final.parent.mkdir(parents=True, exist_ok=True)
+                (Path(staging) / name).replace(final)
     (destination / "scripts").mkdir(parents=True, exist_ok=True)
     shutil.copyfile(SKILL / "SKILL.md", destination / "SKILL.md")
     shutil.copyfile(SKILL / "scripts" / "run.py", destination / "scripts" / "run.py")
-    (destination / "engine_root.txt").write_text(str(ROOT) + "\n", encoding="utf-8")
-    return {"ok": True, "skill": str(destination), "engine": str(ROOT)}
+    (destination / "engine_root.txt").write_text(str(engine) + "\n", encoding="utf-8")
+    return {"ok": True, "skill": str(destination), "engine": str(engine)}
 
 
 def main(argv=None) -> int:
@@ -213,7 +231,7 @@ def main(argv=None) -> int:
     port.add_argument("action", choices=("status", "open", "close"))
     sub.add_parser("init", help="Create a disabled send policy for the owner to edit")
     skill = sub.add_parser("install-skill", help="Install the agent skill into a skills directory")
-    skill.add_argument("--target", required=True, help="Skills directory, e.g. ~/.claude/skills")
+    skill.add_argument("--target", default="~/.claude/skills", help="Skills directory (default: ~/.claude/skills)")
     skill.add_argument("--update", action="store_true", help="Replace an existing team-matic skill")
     args = parser.parse_args(argv)
     try:
