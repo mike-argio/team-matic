@@ -1,4 +1,4 @@
-<h1 align="center">team-matic</h1>
+<h1 align="center"><img src="assets/team-matic-logo.png" alt="team-matic" width="320"></h1>
 
 <p align="center">
   <strong>Your Teams chats. Your scripts. Your AI agents. You stay in control.</strong>
