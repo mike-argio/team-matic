@@ -315,8 +315,13 @@ def create_schema(db):
     CREATE INDEX IF NOT EXISTS ix_messages_incoming ON messages(direction,time_ms DESC);
     """)
     # Added after 0.1.0: an offline copy made by an older version gets the column on the next sync.
-    if "attachments" not in {row[1] for row in db.execute("PRAGMA table_info(messages)")}:
-        db.execute("ALTER TABLE messages ADD COLUMN attachments TEXT NOT NULL DEFAULT '[]'")
+    # NULL means "not read since then", which is different from "no attachments".
+    if not has_attachments(db):
+        db.execute("ALTER TABLE messages ADD COLUMN attachments TEXT")
+
+
+def has_attachments(db):
+    return "attachments" in {row[1] for row in db.execute("PRAGMA table_info(messages)")}
 
 
 def ingest(db, chats, own, scope):
@@ -375,15 +380,12 @@ def close_view():
 
 
 def run_query(query, params=()):
-    try:
-        rows = [dict(x) for x in connection().execute(query, params)]
-    except sqlite3.OperationalError as error:
-        if "attachments" in str(error):
-            raise RuntimeError("The offline copy predates attachments. Run `python teammatic.py sync` once.") from error
-        raise
+    db = connection()
+    # An offline copy saved by 0.1.0 has no such column: its messages report null (unknown), not an error.
+    rows = [dict(x) for x in db.execute(query.format(att="m.attachments" if has_attachments(db) else "NULL"), params)]
     for row in rows:
-        if "attachments" in row:
-            row["attachments"] = json.loads(row["attachments"] or "[]")
+        if row.get("attachments") is not None:
+            row["attachments"] = json.loads(row["attachments"])
     return rows
 
 
@@ -409,7 +411,7 @@ def list_chats():
 
 
 def incoming(limit=20, after_ms=0, chat_id=None):
-    sql = """SELECT c.title AS chat,m.chat_id,m.message_id,m.creator,m.time_ms,m.text,m.attachments
+    sql = """SELECT c.title AS chat,m.chat_id,m.message_id,m.creator,m.time_ms,m.text,{att} AS attachments
        FROM messages m JOIN chats c ON c.chat_id=m.chat_id
        WHERE m.direction='incoming' AND m.deleted=0 AND m.time_ms>=?
        AND COALESCE(m.message_type,'') NOT LIKE 'ThreadActivity/%' """
@@ -423,7 +425,7 @@ def incoming(limit=20, after_ms=0, chat_id=None):
 
 
 def read_chat(chat_id, limit=50, after_ms=0):
-    rows = run_query("""SELECT message_id,direction,creator,time_ms,text,message_type,attachments FROM messages
+    rows = run_query("""SELECT message_id,direction,creator,time_ms,text,message_type,{att} AS attachments FROM messages m
        WHERE chat_id=? AND deleted=0 AND time_ms>=? ORDER BY time_ms DESC LIMIT ?""",
                      (chat_id, after_ms, max(1, min(2000, limit))))
     if not rows and not run_query("SELECT 1 FROM chats WHERE chat_id=?", (chat_id,)):
@@ -433,9 +435,11 @@ def read_chat(chat_id, limit=50, after_ms=0):
 
 def with_attachments(limit=50, chat_id=None):
     """Messages that carry a file or a picture, both directions, newest first."""
+    if not has_attachments(connection()):
+        raise RuntimeError("The offline copy predates attachments. Run `python teammatic.py sync` once.")
     sql = """SELECT c.title AS chat,m.chat_id,m.message_id,m.direction,m.time_ms,m.text,m.attachments
        FROM messages m JOIN chats c ON c.chat_id=m.chat_id
-       WHERE m.deleted=0 AND m.attachments<>'[]' """
+       WHERE m.deleted=0 AND m.attachments IS NOT NULL AND m.attachments<>'[]' """
     args = []
     if chat_id:
         sql += "AND m.chat_id=? "

@@ -47,6 +47,7 @@ python $tm incoming --limit 30          # newest incoming messages
 python $tm incoming --chat <chat_id>
 python $tm read --chat <chat_id> --limit 50   # one conversation, both directions
 python $tm attachments --chat <chat_id>       # messages that carry a file or a picture
+# Each message has `attachments`: [] = none, null = offline copy older than this feature (run sync).
 python $tm stats                        # counts and source
 python $tm whoami                       # author id of the signed-in account (own_creator for the policy)
 ```

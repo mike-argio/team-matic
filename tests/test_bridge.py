@@ -155,14 +155,16 @@ class ReadTests(unittest.TestCase):
         old.commit()
         old.close()
         teams_bridge.OFFLINE = True
+        self.assertEqual([(m["text"], m["attachments"]) for m in incoming(limit=10)], [("kept", None)])
         with self.assertRaisesRegex(RuntimeError, "sync"):
-            incoming(limit=10)
+            teams_bridge.with_attachments()
+        teams_bridge.close_view()
         teams_bridge.OFFLINE = False
         self.live([chat("a", (ME, True, "Text"), (ANN, False, "Text"))])
         teams_bridge.sync()
         self.live([])
         teams_bridge.OFFLINE = True
-        self.assertEqual({m["message_id"]: m["attachments"] for m in incoming(limit=10)}, {"a-1": [], "old-1": []})
+        self.assertEqual({m["message_id"]: m["attachments"] for m in incoming(limit=10)}, {"a-1": [], "old-1": None})  # Not read again: unknown.
 
     def test_offline_without_copy_explains_what_to_do(self):
         teams_bridge.OFFLINE = True
