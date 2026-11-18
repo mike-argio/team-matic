@@ -100,6 +100,47 @@ class TextRenderer(HTMLParser):
         return "\n".join(x.strip() for x in joined.split("\n") if x.strip()).strip()
 
 
+class ImageFinder(HTMLParser):
+    """Pictures pasted into a message. Emoji and GIF stickers are not attachments."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.found = []
+
+    def handle_starttag(self, tag, attrs):
+        found = dict(attrs)
+        if tag == "img" and "AMSImage" in (found.get("itemtype") or ""):
+            self.found.append({"kind": "image", "name": found.get("alt") or "image", "type": "image",
+                               "url": found.get("src") or ""})
+
+
+def attachments(source, files):
+    """Files and pictures of one message: kind, name, type and the link the Teams client stored.
+
+    Names and links come from other people, like the message text. Nothing is downloaded here.
+    """
+    out = []
+    try:
+        entries = json.loads(files) if files else []
+    except ValueError:
+        entries = []
+    for entry in entries if isinstance(entries, list) else []:
+        if not isinstance(entry, dict):
+            continue
+        info = entry.get("fileInfo") if isinstance(entry.get("fileInfo"), dict) else {}
+        out.append({"kind": "file", "name": str(entry.get("fileName") or entry.get("title") or ""),
+                    "type": str(entry.get("fileType") or ""),
+                    "url": str(info.get("shareUrl") or entry.get("objectUrl") or info.get("fileUrl") or "")})
+    finder = ImageFinder()
+    try:
+        finder.feed(source or "")
+    except Exception:  # Malformed third-party HTML must not stop a read.
+        pass
+    out += finder.found
+    return [{**x, "name": x["name"][:300], "url": x["url"][:2000] if x["url"].startswith("https://") else ""}
+            for x in out[:50]]
+
+
 def strip_html(source):
     parser = TextRenderer()
     try:
@@ -273,6 +314,9 @@ def create_schema(db):
     CREATE INDEX IF NOT EXISTS ix_messages_time ON messages(time_ms DESC);
     CREATE INDEX IF NOT EXISTS ix_messages_incoming ON messages(direction,time_ms DESC);
     """)
+    # Added after 0.1.0: an offline copy made by an older version gets the column on the next sync.
+    if "attachments" not in {row[1] for row in db.execute("PRAGMA table_info(messages)")}:
+        db.execute("ALTER TABLE messages ADD COLUMN attachments TEXT NOT NULL DEFAULT '[]'")
 
 
 def ingest(db, chats, own, scope):
@@ -294,13 +338,15 @@ def ingest(db, chats, own, scope):
                 raw = m.get("html") or ""
                 creator = m.get("creator") or ""
                 direction = "unknown" if not creator else "outgoing" if creator == own else "incoming"
-                db.execute("""INSERT INTO messages(chat_id,message_id,creator,direction,time_ms,text,html,message_type,deleted,first_seen_run,last_seen_run)
-                  VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(chat_id,message_id) DO UPDATE SET
+                db.execute("""INSERT INTO messages(chat_id,message_id,creator,direction,time_ms,text,html,message_type,deleted,first_seen_run,last_seen_run,attachments)
+                  VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(chat_id,message_id) DO UPDATE SET
                   creator=excluded.creator,direction=excluded.direction,time_ms=excluded.time_ms,
                   text=excluded.text,html=excluded.html,message_type=excluded.message_type,
-                  deleted=excluded.deleted,last_seen_run=excluded.last_seen_run""",
+                  deleted=excluded.deleted,last_seen_run=excluded.last_seen_run,
+                  attachments=excluded.attachments""",
                            (cid, str(m["id"]), creator, direction, int(m["timeMs"]), strip_html(raw), raw,
-                            m.get("messageType"), int(bool(m.get("deleted"))), run_id, run_id))
+                            m.get("messageType"), int(bool(m.get("deleted"))), run_id, run_id,
+                            json.dumps(attachments(raw, m.get("files")), ensure_ascii=False)))
     return run_id
 
 
@@ -329,7 +375,16 @@ def close_view():
 
 
 def run_query(query, params=()):
-    return [dict(x) for x in connection().execute(query, params)]
+    try:
+        rows = [dict(x) for x in connection().execute(query, params)]
+    except sqlite3.OperationalError as error:
+        if "attachments" in str(error):
+            raise RuntimeError("The offline copy predates attachments. Run `python teammatic.py sync` once.") from error
+        raise
+    for row in rows:
+        if "attachments" in row:
+            row["attachments"] = json.loads(row["attachments"] or "[]")
+    return rows
 
 
 def sync():
@@ -354,7 +409,7 @@ def list_chats():
 
 
 def incoming(limit=20, after_ms=0, chat_id=None):
-    sql = """SELECT c.title AS chat,m.chat_id,m.message_id,m.creator,m.time_ms,m.text
+    sql = """SELECT c.title AS chat,m.chat_id,m.message_id,m.creator,m.time_ms,m.text,m.attachments
        FROM messages m JOIN chats c ON c.chat_id=m.chat_id
        WHERE m.direction='incoming' AND m.deleted=0 AND m.time_ms>=?
        AND COALESCE(m.message_type,'') NOT LIKE 'ThreadActivity/%' """
@@ -368,12 +423,26 @@ def incoming(limit=20, after_ms=0, chat_id=None):
 
 
 def read_chat(chat_id, limit=50, after_ms=0):
-    rows = run_query("""SELECT message_id,direction,creator,time_ms,text,message_type FROM messages
+    rows = run_query("""SELECT message_id,direction,creator,time_ms,text,message_type,attachments FROM messages
        WHERE chat_id=? AND deleted=0 AND time_ms>=? ORDER BY time_ms DESC LIMIT ?""",
                      (chat_id, after_ms, max(1, min(2000, limit))))
     if not rows and not run_query("SELECT 1 FROM chats WHERE chat_id=?", (chat_id,)):
         raise RuntimeError("Unknown chat_id. Use `list` to see chats.")
     return rows[::-1]
+
+
+def with_attachments(limit=50, chat_id=None):
+    """Messages that carry a file or a picture, both directions, newest first."""
+    sql = """SELECT c.title AS chat,m.chat_id,m.message_id,m.direction,m.time_ms,m.text,m.attachments
+       FROM messages m JOIN chats c ON c.chat_id=m.chat_id
+       WHERE m.deleted=0 AND m.attachments<>'[]' """
+    args = []
+    if chat_id:
+        sql += "AND m.chat_id=? "
+        args.append(chat_id)
+    sql += "ORDER BY m.time_ms DESC LIMIT ?"
+    args.append(max(1, min(2000, limit)))
+    return run_query(sql, tuple(args))
 
 
 def find_message(chat_id, message_id):
@@ -458,6 +527,9 @@ def main(argv=None):
     r.add_argument("--chat", required=True)
     r.add_argument("--limit", type=int, default=50)
     r.add_argument("--after-ms", type=int, default=0)
+    a = sub.add_parser("attachments", parents=[offline], help="Messages with files or pictures, newest first")
+    a.add_argument("--chat", help="Only this chat_id")
+    a.add_argument("--limit", type=int, default=50)
     w = sub.add_parser("whoami", help="Author id of the signed-in account")
     w.add_argument("--set", dest="set_value", help="Set the account id explicitly")
     w.add_argument("--reset", action="store_true", help="Forget the stored account id")
@@ -476,6 +548,8 @@ def main(argv=None):
             out = envelope(incoming(args.limit, args.after_ms, args.chat))
         elif args.cmd == "read":
             out = envelope(read_chat(args.chat, args.limit, args.after_ms))
+        elif args.cmd == "attachments":
+            out = envelope(with_attachments(args.limit, args.chat))
         elif args.cmd == "whoami":
             out = whoami(args.set_value, args.reset)
         else:

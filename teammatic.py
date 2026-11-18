@@ -21,7 +21,7 @@ import teams_bridge as bridge
 import teams_send
 
 ROOT = Path(__file__).resolve().parent
-READ = ("sync", "list", "stats", "incoming", "read", "whoami")
+READ = ("sync", "list", "stats", "incoming", "read", "attachments", "whoami")
 SEND = ("plan", "show", "run", "cancel", "reconcile", "abandon")
 OWN = ("doctor", "cdp", "init", "install-skill")
 DEBUG_VARIABLE = "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"
@@ -30,7 +30,7 @@ SKILL = ROOT / "skills" / "team-matic"
 USAGE = """team-matic: automate your own Microsoft Teams chats
 
   Setup      doctor | cdp status|open|close | init | install-skill [--target DIR]
-  Read       list | incoming | read --chat ID | stats | whoami   (live; add --offline for a saved copy)
+  Read       list | incoming | read --chat ID | attachments | stats | whoami   (live; add --offline for a saved copy)
              sync   saves an offline copy (optional)
   Send       plan | show | run | cancel | reconcile | abandon
 

@@ -73,6 +73,7 @@ With the port open, every read comes live from the running client:
 python teammatic.py list
 python teammatic.py read --chat <chat_id> --limit 50
 python teammatic.py incoming --chat <chat_id>
+python teammatic.py attachments --chat <chat_id>   # Messages with files or pictures
 python teammatic.py stats
 ```
 
@@ -209,7 +210,7 @@ Other good projects reach Teams differently. Pick the one that fits:
 
 **Does this support Teams channels, files, meetings or calls?**
 
-No. This project works with chats and locally loaded message history. It does not support channels, meetings, calls, attachments, reactions, edits, deletions or read receipts.
+No. This project works with chats and locally loaded message history. Every message lists its files and pictures (name, type and the link Teams stored), so an agent can tell that a price list arrived and which one. team-matic does not download those files or send new ones: open the link in a browser where you are signed in. It does not support channels, meetings, calls, reactions, edits, deletions or read receipts.
 
 **Can it read every message I have ever received?**
 

@@ -1,6 +1,6 @@
 ---
 name: team-matic
-description: "Read and send Microsoft Teams chat messages through the user's own desktop Teams client: list chats, read new and past messages, draft or send formatted messages, mail-merge an owner-approved batch. Use for: Teams, check my Teams messages, reply in Teams, send an offer or announcement in Teams, Teams campaign. Runs once per request. Not for Teams channels, meetings, calls, files, Microsoft Graph or bots."
+description: "Read and send Microsoft Teams chat messages through the user's own desktop Teams client: list chats, read new and past messages, draft or send formatted messages, mail-merge an owner-approved batch. Use for: Teams, check my Teams messages, reply in Teams, send an offer or announcement in Teams, Teams campaign. Runs once per request. Lists the files and pictures attached to messages (name, type, link); it does not download or send files. Not for Teams channels, meetings, calls, Microsoft Graph or bots."
 ---
 
 # team-matic
@@ -46,6 +46,7 @@ python $tm list                         # chats with chat_id
 python $tm incoming --limit 30          # newest incoming messages
 python $tm incoming --chat <chat_id>
 python $tm read --chat <chat_id> --limit 50   # one conversation, both directions
+python $tm attachments --chat <chat_id>       # messages that carry a file or a picture
 python $tm stats                        # counts and source
 python $tm whoami                       # author id of the signed-in account (own_creator for the policy)
 ```
@@ -93,7 +94,7 @@ and presses Send. Record it afterwards with `reconcile --job <id> --message-id <
 `[label](https://...)`, `# heading`, `- bullets`, `1. numbered`, `> quote`, fenced code blocks, emoji.
 `title` is one bold line above the text. `table` is up to 20 rows by 7 columns of plain cells, first row bold.
 Set `"format": "plain"` to send `text` literally. Limits: text 8000 characters, title 200, cell 300.
-Not supported: raw HTML, colors, mentions, attachments, images, nested lists.
+Not supported when sending: raw HTML, colors, mentions, attachments, images, nested lists.
 Do not use colored text: it is unreadable on the purple outgoing bubble.
 
 Same message to several people, personalized:

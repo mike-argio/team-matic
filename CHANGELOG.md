@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Reads list the files and pictures of each message (`attachments`: kind, name, type, link), and the new
+  `attachments` command finds the messages that carry one. Before, a message that was only a file came back
+  as empty text. Files are not downloaded or sent. An offline copy from 0.1.0 gets the new column on the next `sync`.
+
 ## 0.1.0 (2026-11-17)
 
 First public release. Experimental.

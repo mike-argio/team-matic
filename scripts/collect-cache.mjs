@@ -42,6 +42,8 @@ async function readThread({name, thread}) {
             // The client's own flag; Python cross-checks it before trusting it.
             mine: typeof m.isSentByCurrentUser === 'boolean' ? m.isSentByCurrentUser : null,
             html: rawHtml.slice(0, 100000), messageType: m.messageType || '',
+            // File tiles live outside the message body, as a JSON string written by the client.
+            files: typeof m.properties?.files === 'string' ? m.properties.files.slice(0, 200000) : '',
             deleted: !!m.deletionInfo, contentTruncated: rawHtml.length > 100000
           };
           const prior = messages.get(entry.id);

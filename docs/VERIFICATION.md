@@ -19,6 +19,8 @@ No cross-platform offline suite has been verified here.
 | Read the chat list and messages live, no copy on disk | yes | yes | About 4,700 messages in 23 chats; only `state.json` written |
 | Offline copy (`sync`, then `--offline`) | yes | yes | Repeated syncs created no duplicates |
 | Sync without taking window focus | yes | n/a | Foreground monitor: 0 Teams activations in 3,546 samples while minimized |
+| Files and pictures listed per message (`attachments`) | yes | yes | 55 files and 89 pictures found in 142 messages; names, types and links only |
+| Download or send a file | no | n/a | Not implemented. Stored share links answer 403 or 401 without a signed-in browser |
 | New message in a chat that is not open | yes | yes | Picked up by the next sync |
 | Own-account detection without configuration | yes | yes | Client flag present on every message; detected account equals the known one |
 | `doctor` compatibility probe, `cdp open` and `cdp close` | yes | n/a | Port listener gone after `cdp close` |
@@ -61,3 +63,8 @@ sends is fail-closed: if the composed draft does not contain the approved text a
   happened to be selected also stopped sends to other chats; only the destination composer is checked now.
   `doctor` crashed in Python UTF-8 mode on localized `tasklist` output; fixed. The earlier `--draft-only` draft
   was later sent by hand and recorded with `reconcile`. Port closed afterwards.
+- 2026-11-18: attachments. The client keeps file tiles outside the message body (`properties.files`), so earlier
+  versions returned such a message as empty text. Live read after the change: 142 messages with attachments,
+  55 files (xlsx, pdf, xls, docx, mp4, gif) and 89 pictures, each with name, type and link. Three stored share
+  links were requested without credentials: 403 and 401, so they need a signed-in browser. Nothing was sent.
+  Port closed afterwards.

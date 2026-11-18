@@ -1,6 +1,7 @@
 """Offline checks for the reader: parsing, account detection, live and offline reads, cursors."""
 import json
 from pathlib import Path
+import sqlite3
 import sys
 import tempfile
 import unittest
@@ -123,6 +124,45 @@ class ReadTests(unittest.TestCase):
         teams_bridge.OFFLINE = True
         self.assertEqual(stats()["source"], "offline")
         self.assertEqual([m["message_id"] for m in incoming(limit=10)], ["a-1"])
+
+    def test_files_and_pictures_are_listed_with_the_message(self):
+        with_file = chat("a", (ME, True, "Text"), (ANN, False, "Text"))
+        with_file["messages"][1].update(
+            html='<p>Price list <img alt="ok" itemtype="http://schema.skype.com/Emoji" src="https://cdn.example/e.png">'
+                 '<img alt="photo" itemtype="http://schema.skype.com/AMSImage" src="https://media.example/p"></p>',
+            files=json.dumps([{"fileName": "prices.xlsx", "fileType": "xlsx", "objectUrl": "https://files.example/o",
+                               "fileInfo": {"shareUrl": "https://share.example/s"}},
+                              {"fileName": "odd.exe", "fileType": "exe", "objectUrl": "javascript:alert(1)"}, "junk"]))
+        with_file["messages"][0]["files"] = "{not json"
+        self.live([with_file])
+        expected = [{"kind": "file", "name": "prices.xlsx", "type": "xlsx", "url": "https://share.example/s"},
+                    {"kind": "file", "name": "odd.exe", "type": "exe", "url": ""},  # Only https links are passed on.
+                    {"kind": "image", "name": "photo", "type": "image", "url": "https://media.example/p"}]
+        self.assertEqual(incoming(limit=10)[0]["attachments"], expected)
+        self.assertEqual([m["attachments"] for m in teams_bridge.read_chat("a")], [[], expected])
+        self.assertEqual([m["message_id"] for m in teams_bridge.with_attachments()], ["a-1"])
+
+    def test_offline_copy_from_an_older_version_gains_attachments_on_sync(self):
+        old = sqlite3.connect(self.root / "cache.sqlite3")
+        old.executescript("""CREATE TABLE messages(chat_id TEXT NOT NULL,message_id TEXT NOT NULL,creator TEXT,
+          direction TEXT NOT NULL,time_ms INTEGER NOT NULL,text TEXT NOT NULL,html TEXT NOT NULL,message_type TEXT,
+          deleted INTEGER NOT NULL,first_seen_run INTEGER NOT NULL,last_seen_run INTEGER NOT NULL,
+          PRIMARY KEY(chat_id,message_id));
+          CREATE TABLE chats(chat_id TEXT PRIMARY KEY,title TEXT NOT NULL,kind TEXT,roster_time TEXT,
+          roster_preview TEXT,cached_replychains INTEGER NOT NULL,last_seen_run INTEGER NOT NULL);
+          INSERT INTO chats VALUES('old','Old',NULL,NULL,NULL,1,1);
+          INSERT INTO messages VALUES('old','old-1','8:ann','incoming',5,'kept','<p>kept</p>','Text',0,1,1);""")
+        old.commit()
+        old.close()
+        teams_bridge.OFFLINE = True
+        with self.assertRaisesRegex(RuntimeError, "sync"):
+            incoming(limit=10)
+        teams_bridge.OFFLINE = False
+        self.live([chat("a", (ME, True, "Text"), (ANN, False, "Text"))])
+        teams_bridge.sync()
+        self.live([])
+        teams_bridge.OFFLINE = True
+        self.assertEqual({m["message_id"]: m["attachments"] for m in incoming(limit=10)}, {"a-1": [], "old-1": []})
 
     def test_offline_without_copy_explains_what_to_do(self):
         teams_bridge.OFFLINE = True

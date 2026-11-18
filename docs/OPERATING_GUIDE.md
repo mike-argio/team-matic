@@ -2,7 +2,7 @@
 
 This guide is the detailed companion to the [project overview](../README.md). It describes the current command-line interface and the guardrails implemented in the repository. For what has actually been tested on a live Teams client, read [VERIFICATION.md](VERIFICATION.md).
 
-> **Scope:** Windows desktop Teams chats belonging to the account you are signed in to. Not channels, meetings, calls, files, reactions or a full Teams history export.
+> **Scope:** Windows desktop Teams chats belonging to the account you are signed in to. Attachments are listed, not downloaded or sent. Not channels, meetings, calls, reactions or a full Teams history export.
 
 ## Requirements and first run
 
@@ -38,6 +38,7 @@ Every command is a one-shot CLI invocation that prints JSON and exits. No servic
 | New since epoch | `incoming --after-ms <epoch_ms>` | Millisecond timestamp |
 | Named cursor | `incoming --cursor <name> [--commit]` | Per-consumer progress |
 | Conversation | `read --chat <chat_id> --limit 50` | Both directions, oldest first |
+| Files and pictures | `attachments [--chat <chat_id>]` | Messages that carry one, newest first; every read also returns `attachments` per message |
 | Status | `stats` | Counts, `source` (live or offline) and copy age |
 | Account ID | `whoami` | Use the returned creator ID for send policy |
 | Create send policy | `init` | Creates disabled `data/send-policy.json`; does not overwrite it |
@@ -207,7 +208,7 @@ Keep `data/` local. It is intentionally git-ignored; never commit it or share re
 - Live verified: `doctor`, CDP open/close, live reads, offline copy (`sync`), chat reading, incoming messages, automatic account identification, supervised plain-text and formatted sends, `--draft-only` and chat navigation.
 - Offline tests only / pending live: mail merge at scale and recovery logic.
 - Untested live: work/school accounts and other languages.
-- Out of scope: channels, meetings, calls, files, reactions, edits, deletions, read receipts.
+- Out of scope: downloading or sending files, channels, meetings, calls, reactions, edits, deletions, read receipts.
 
 Check [VERIFICATION.md](VERIFICATION.md) for the detailed matrix. Compatibility can change after Teams updates; `doctor` detects some mismatches but offline tests cannot prove future live compatibility.
 
